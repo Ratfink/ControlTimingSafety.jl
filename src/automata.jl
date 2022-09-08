@@ -45,6 +45,10 @@ function Base.getproperty(a::Automaton, s::Symbol)
     end
 end
 
+function Base.propertynames(a::Automaton, private::Bool=false)
+    (fieldnames(typeof(a))..., :L, :A, :nz)
+end
+
 """
     Automaton_lint(a, l_int)
 
