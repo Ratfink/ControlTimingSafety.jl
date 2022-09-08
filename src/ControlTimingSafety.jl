@@ -1,5 +1,8 @@
 module ControlTimingSafety
 
+using LinearAlgebra
+using Distances
+
 export Automaton
 export Automaton_lint, hold_skip_next, zero_skip_next, hold_kill, zero_kill
 export evol_final, evol, augment

@@ -26,7 +26,7 @@ struct Automaton
     function Automaton(Φ, T, μ, l_int)
         nz = size(Φ[1], 1)
 
-        @boundscheck all(t -> t == (nz, nz), size.(Φ)) || throw (DimensionMismatch("All matrices in Φ must be square and equal size"))
+        @boundscheck all(t -> t == (nz, nz), size.(Φ)) || throw(DimensionMismatch("All matrices in Φ must be square and equal size"))
         @boundscheck size(T) == size(μ) || throw(DimensionMismatch("T and μ must be of equal size"))
         @boundscheck l_int ∈ axes(T, 1) || throw(ArgumentError("l_int must be a valid index to the first dimension of T"))
         @boundscheck all(t -> t == 0 || t ∈ axes(T, 1), T) || throw(ArgumentError("All entries of T must be valid indices to the first dimension of T"))
@@ -236,7 +236,7 @@ end
 
 Same as `evol`, but returns `(z, l)`, where `z` is a matrix of states over time, and `l` is the final location in the automaton.
 """
-function evol_final(a, z_0, input)
+function evol_final(a::Automaton, z_0, input)
     t_max = length(input)
     z = zeros(size(z_0, 1), t_max + 1)
     z[:,1] = z_0
@@ -244,16 +244,16 @@ function evol_final(a, z_0, input)
     # For each time step
     for t = 1:t_max
         # Get the dynamics matrix
-        μ = automaton.μ[l, input[t]]
+        μ = a.μ[l, input[t]]
         # If we hit a missing transition, return the states that we reached,
         # and a missing final location to signal the problem to the caller.
         if ismissing(μ)
             return z[:,1:t]', missing
         end
         # Apply the dynamics
-        z[:,t+1] = automaton.Φ[μ] * z[:,t]
+        z[:,t+1] = a.Φ[μ] * z[:,t]
         # Transition to the new location
-        l = automaton.T[l, input[t]]
+        l = a.T[l, input[t]]
     end
     z', l
 end
@@ -267,11 +267,11 @@ Returns `z`, a matrix of states over time.
 
 See also `evol_final`, which additionally returns the final location in the automaton.
 """
-evol(a, z_0, input) = evol_final(a, z_0, input)[1]
+evol(a::Automaton, z_0, input) = evol_final(a, z_0, input)[1]
 
 """
     augment(a, x)
 
 Pad the state vector (or matrix of column vectors) `x` to as many dimensions as in the augmented state space of `a`.
 """
-augment(a, x) = [x; zeros(a.nz - size(x, 1), size(x, 2))]
+augment(a::Automaton, x) = [x; zeros(a.nz - size(x, 1), size(x, 2))]
