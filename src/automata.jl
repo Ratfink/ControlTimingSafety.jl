@@ -55,7 +55,7 @@ end
 Construct a copy of the `Automaton` `a` with a new `l_int`.
 """
 function Automaton_lint(a::Automaton, l_int::Int64)
-    @boundscheck l_int ∈ axes(a.T, 1) || throw(ArgumentError("l_int must be a valid index to the first dimension of T"))
+    @boundscheck l_int ∈ a.L || throw(ArgumentError("l_int must be a valid location in a.L"))
 
     @inbounds Automaton(a.Φ, a.T, a.μ, l_int)
 end
@@ -251,7 +251,7 @@ Same as `evol`, but returns `(z, l)`, where `z` is a matrix of states over time,
 """
 function evol_final(a::Automaton, z_0, input)
     t_max = length(input)
-    z = zeros(size(z_0, 1), t_max + 1)
+    z = zeros(a.nz, t_max + 1)
     z[:,1] = z_0
     l = a.l_int
     # For each time step
