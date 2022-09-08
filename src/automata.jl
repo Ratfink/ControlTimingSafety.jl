@@ -10,18 +10,12 @@ A transducer automaton.
 * `T`: transition function.  `T[l,a]` is a location in `1:L`, or `missing` if no transition.
 * `μ`: output function.  `μ[l,a]` is an index into `Φ`, or `missing` if no transition.
 * `l_int`: initial location in `1:L`.
-* `L`: locations.  Legal locations are in the range `1:L`.
-* `A`: actions (input alphabet).  Legal actions are in the range `1:A`.
-* `nz`: number of dimensions in the augmented state space.
 """
 struct Automaton
     Φ::Vector{AbstractMatrix{Float64}}
     T::Matrix{Union{Missing, Int64}}
     μ::Matrix{Union{Missing, Int64}}
     l_int::Int64
-    L::Int64
-    A::Int64
-    nz::Int64
 
     function Automaton(Φ, T, μ, l_int)
         nz = size(Φ[1], 1)
@@ -32,7 +26,22 @@ struct Automaton
         @boundscheck all(t -> t == 0 || t ∈ axes(T, 1), T) || throw(ArgumentError("All entries of T must be valid indices to the first dimension of T"))
         @boundscheck all(t -> t == 0 || t ∈ axes(Φ, 1), μ) || throw(ArgumentError("All entries of μ must be valid indices to Φ"))
 
-        new(Φ, T, μ, l_int, size(T)..., nz)
+        new(Φ, T, μ, l_int)
+    end
+end
+
+nlocations(a::Automaton) = size(a.T, 1)
+nactions(a::Automaton) = size(a.T, 2)
+
+function Base.getproperty(a::Automaton, s::Symbol)
+    if s === :L
+        return Base.oneto(nlocations(a))
+    elseif s === :A
+        return Base.oneto(nactions(a))
+    elseif s === :nz
+        return size(a.Φ[1], 1)
+    else
+        return getfield(a, s)
     end
 end
 

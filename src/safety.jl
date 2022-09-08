@@ -39,7 +39,7 @@ Compute reachable sets for `n` time steps for the given automaton `a`, starting 
 
 `bounds` must be an `a.nz`×`2` matrix, whose first and second columns are the minimum and maximum along each dimension, respectively.
 
-Returns `(bounds, locs)`, where `bounds` is an `a.A^n`×`n+1`×`a.nz`×`2` `Array{Float64}` giving the bounding box for each (run, time step), and `locs` is an `a.A^n` `Array{Int64}` of final locations for each run (or zero if there is no such run).
+Returns `(bounds, locs)`, where `bounds` is an `nactions(a)^n`×`n+1`×`a.nz`×`2` `Array{Float64}` giving the bounding box for each (run, time step), and `locs` is an `nactions(a)^n` `Array{Int64}` of final locations for each run (or zero if there is no such run).
 """
 function bounded_runs(a::Automaton, bounds, n)
     corners = corners_from_bounds(bounds)
@@ -50,7 +50,7 @@ function bounded_runs(a::Automaton, bounds, n)
     act = Vector{Int64}(undef, n+1)
 
     # Bounding boxes for each final location, time step
-    ret = Array{Float64}(undef, a.L, n+1, a.nz, 2) * NaN
+    ret = Array{Float64}(undef, nlocations(a), n+1, a.nz, 2) * NaN
 
     # Create the stack frame for time 0
     z[1,:,:] = corners
@@ -67,7 +67,7 @@ function bounded_runs(a::Automaton, bounds, n)
             ret[loc[sp],:,:,2] = maximum(_safefloatmax, cat(z, ret[loc[sp],:,:,2], dims=3), dims=3)
             sp -= 1
             # If we're out of actions from this step
-        elseif act[sp] > a.A
+        elseif act[sp] > nactions(a)
             sp -= 1
             # If the transition is missing
         elseif ismissing(a.T[loc[sp], act[sp]])
@@ -99,15 +99,15 @@ function bounded_runs_iter(a::Automaton, bounds, n, t)
     all_bounds[1:n+1,:,:] = merge_bounds(bounds)[:,:,1:end]
 
     # Dimensions: initial location, final location, time, augmented state, min/max
-    new_bounds = Array{Any}(undef, a.L, a.L, n+1, a.nz, 2)
+    new_bounds = Array{Any}(undef, nlocations(a), nlocations(a), n+1, a.nz, 2)
     for i in 1:t
         # Simulate each box from previous iteration
-        for i in 1:a.L
+        for i in a.L
             a = Automaton_lint(a, i)
             new_bounds[i,:,:,:,:] = bounded_runs(a, bounds[i,end,:,:], n)
         end
         # Merge resulting boxes from these simulations
-        for i in 1:a.L
+        for i in a.L
             bounds[i,:,:,:] = merge_bounds(new_bounds[:,i,:,:,:])
         end
         # Save the bounds
