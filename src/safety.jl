@@ -1,12 +1,9 @@
 """
-    corners_from_bounds(bounds; cycle=false, dims=nothing)
+    corners_from_bounds(bounds; cycle=false, dims=axes(bounds, 1))
 
-Returns the corners of the n-dimensional interval represented by `bounds`.  If `cycle` is `true`, the first corner is repeated at the end, and the corners are given in Gray code order.  If `dims` is specified, only these dimensions are considered.
+Returns the corners of the n-dimensional interval represented by `bounds`.  If `cycle` is `true`, the first corner is repeated at the end, and the corners are given in Gray code order.  Only the dimensions from `dims` are considered.
 """
-function corners_from_bounds(bounds; cycle=false, dims=nothing)
-    if dims === nothing
-        dims = axes(bounds, 1)
-    end
+function corners_from_bounds(bounds; cycle=false, dims=axes(bounds, 1))
     ldims = length(dims)
 
     corners = cat(reshape([[c...] for c in Base.product(eachrow(bounds[dims,:])...)], 2^ldims)..., dims=2)
