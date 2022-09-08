@@ -250,14 +250,13 @@ end
 Same as `evol`, but returns `(z, l)`, where `z` is a matrix of states over time, and `l` is the final location in the automaton.
 """
 function evol_final(a::Automaton, z_0, input)
-    t_max = length(input)
-    z = zeros(a.nz, t_max + 1)
+    z = zeros(a.nz, length(input) + 1)
     z[:,1] = z_0
     l = a.l_int
-    # For each time step
-    for t = 1:t_max
+    # For each time step and input action
+    for (t, in) in enumerate(input)
         # Get the dynamics matrix
-        μ = a.μ[l, input[t]]
+        μ = a.μ[l, in]
         # If we hit a missing transition, return the states that we reached,
         # and a missing final location to signal the problem to the caller.
         if ismissing(μ)
@@ -266,7 +265,7 @@ function evol_final(a::Automaton, z_0, input)
         # Apply the dynamics
         z[:,t+1] = a.Φ[μ] * z[:,t]
         # Transition to the new location
-        l = a.T[l, input[t]]
+        l = a.T[l, in]
     end
     z', l
 end
