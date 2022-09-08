@@ -78,18 +78,18 @@ function hold_skip_next(sysd, K, miss=nothing)
 
     # Define the automaton's structure
     if miss === nothing || miss == -1
-        T = [2 1;
-             2 1]
-        μ = [3 1;
-             4 2]
+        T = [1 2;
+             1 2]
+        μ = [1 3;
+             2 4]
     elseif miss == 0
-        T = [missing 1]
-        μ = [missing 1]
+        T = [1 missing]
+        μ = [1 missing]
     else
-        T = [[collect(2:miss+1); missing] ones(Int64, (miss+1, 1))]
-        μ = [3 1;
-             repeat([4 2], miss-1, 1);
-             missing 2]
+        T = [ones(Int64, (miss+1, 1)) [collect(2:miss+1); missing]]
+        μ = [1 3;
+             repeat([2 4], miss-1, 1);
+             2 missing]
     end
 
     # Put it all together, with the Φ matrices
@@ -130,18 +130,18 @@ function zero_skip_next(sysd, K, miss=nothing)
 
     # Define the automaton's structure
     if miss === nothing || miss == -1
-        T = [2 1;
-             2 1]
-        μ = [3 1;
-             4 2]
+        T = [1 2;
+             1 2]
+        μ = [1 3;
+             2 4]
     elseif miss == 0
-        T = [missing 1]
-        μ = [missing 1]
+        T = [1 missing]
+        μ = [1 missing]
     else
-        T = [[collect(2:miss+1); missing] ones(Int64, (miss+1, 1))]
-        μ = [3 1;
-             repeat([4 2], miss-1, 1);
-             missing 2]
+        T = [ones(Int64, (miss+1, 1)) [collect(2:miss+1); missing]]
+        μ = [1 3;
+             repeat([2 4], miss-1, 1);
+             2 missing]
     end
 
     # Put it all together, with the Φ matrices
@@ -183,15 +183,15 @@ function hold_kill(sysd, K, miss=nothing)
     # Define the automaton's structure
     if miss === nothing || miss == -1
         T = [1 1]
-        μ = [2 1]
+        μ = [1 2]
     elseif miss == 0
-        T = [missing 1]
-        μ = [missing 1]
+        T = [1 missing]
+        μ = [1 missing]
     else
-        T = [[collect(2:miss+1); missing] ones(Int64, (miss+1, 1))]
-        μ = [2 1;
-             repeat([2 1], miss-1, 1);
-             missing 1]
+        T = [ones(Int64, (miss+1, 1)) [collect(2:miss+1); missing]]
+        μ = [1 2;
+             repeat([1 2], miss-1, 1);
+             1 missing]
     end
 
     # Put it all together, with the Φ matrices
@@ -223,15 +223,15 @@ function zero_kill(sysd, K, miss=nothing)
     # Define the automaton's structure
     if miss === nothing || miss == -1
         T = [1 1]
-        μ = [2 1]
+        μ = [1 2]
     elseif miss == 0
-        T = [missing 1]
-        μ = [missing 1]
+        T = [1 missing]
+        μ = [1 missing]
     else
-        T = [[collect(2:miss+1); missing] ones(Int64, (miss+1, 1))]
-        μ = [2 1;
-             repeat([2 1], miss-1, 1);
-             missing 1]
+        T = [ones(Int64, (miss+1, 1)) [collect(2:miss+1); missing]]
+        μ = [1 2;
+             repeat([1 2], miss-1, 1);
+             1 missing]
     end
 
     # Put it all together, with the Φ matrices

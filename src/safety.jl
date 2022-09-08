@@ -114,11 +114,11 @@ function bounded_runs_iter(a::Automaton, bounds, n, t)
 end
 
 """
-    deviation(a, bounds, reachable; dims=[all], metric=Euclidean(), nominal=[2,2,...])
+    deviation(a, bounds, reachable; dims=[all], metric=Euclidean(), nominal=[1,1,...])
 
-Compute the deviation from the `nominal` behavior (default: all `2`) that is possible for the given automaton `a`, starting from the set of initial states `bounds`, within the `reachable` sets.  The deviation is computed using the specified `metric` from the [Distances.jl](https://www.juliapackages.com/p/distances) package.  If `dims` is specified, the deviation is computed for these dimensions only; otherwise, all dimensions are used.
+Compute the deviation from the `nominal` behavior (default: all `1`) that is possible for the given automaton `a`, starting from the set of initial states `bounds`, within the `reachable` sets.  The deviation is computed using the specified `metric` from the [Distances.jl](https://www.juliapackages.com/p/distances) package.  If `dims` is specified, the deviation is computed for these dimensions only; otherwise, all dimensions are used.
 """
-function deviation(a::Automaton, bounds, reachable; dims=axes(bounds,1), metric::PreMetric=Euclidean(), nominal=repeat([2],size(reachable,1)-1))
+function deviation(a::Automaton, bounds, reachable; dims=axes(bounds,1), metric::PreMetric=Euclidean(), nominal=repeat([1],size(reachable,1)-1))
     # Dimensions: state variables, points, time
     reachable_corners = cat([corners_from_bounds(reachable[t,:,:], dims=dims) for t in axes(reachable, 1)]..., dims=3)
 
