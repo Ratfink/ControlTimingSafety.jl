@@ -42,7 +42,7 @@ function bounded_runs(a::Automaton, bounds, n)
     corners = corners_from_bounds(bounds)
 
     # Stack
-    z = Matrix{Float64}(undef, n+1, axes(corners)...)
+    z = Array{Float64}(undef, n+1, size(corners)...)
     loc = Vector{Int64}(undef, n+1)
     act = Vector{Int64}(undef, n+1)
 
@@ -72,7 +72,7 @@ function bounded_runs(a::Automaton, bounds, n)
             act[sp] = act[sp] + 1
             # If the transition is present
         else
-            z[sp+1,:] = a.Φ[a.μ[loc[sp], act[sp]]] * z[sp,:]
+            z[sp+1,:,:] = a.Φ[a.μ[loc[sp], act[sp]]] * z[sp,:,:]
             loc[sp+1] = a.T[loc[sp], act[sp]]
             act[sp+1] = 1
             act[sp] = act[sp] + 1
@@ -96,7 +96,7 @@ function bounded_runs_iter(a::Automaton, bounds, n, t)
     all_bounds[1:n+1,:,:] = merge_bounds(bounds)[:,:,1:end]
 
     # Dimensions: initial location, final location, time, augmented state, min/max
-    new_bounds = Array{Any}(undef, nlocations(a), nlocations(a), n+1, a.nz, 2)
+    new_bounds = Array{Float64}(undef, nlocations(a), nlocations(a), n+1, a.nz, 2)
     for i in 1:t
         # Simulate each box from previous iteration
         for i in a.L

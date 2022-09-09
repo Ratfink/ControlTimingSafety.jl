@@ -23,8 +23,8 @@ struct Automaton
         @boundscheck all(t -> t == (nz, nz), size.(Φ)) || throw(DimensionMismatch("All matrices in Φ must be square and equal size"))
         @boundscheck size(T) == size(μ) || throw(DimensionMismatch("T and μ must be of equal size"))
         @boundscheck l_int ∈ axes(T, 1) || throw(ArgumentError("l_int must be a valid index to the first dimension of T"))
-        @boundscheck all(t -> t == 0 || t ∈ axes(T, 1), T) || throw(ArgumentError("All entries of T must be valid indices to the first dimension of T"))
-        @boundscheck all(t -> t == 0 || t ∈ axes(Φ, 1), μ) || throw(ArgumentError("All entries of μ must be valid indices to Φ"))
+	@boundscheck all(t -> ismissing(t) || t ∈ axes(T, 1), T) || throw(ArgumentError("All entries of T must be valid indices to the first dimension of T or missing"))
+	@boundscheck all(t -> ismissing(t) || t ∈ axes(Φ, 1), μ) || throw(ArgumentError("All entries of μ must be valid indices to Φ or missing"))
 
         new(Φ, T, μ, l_int)
     end
