@@ -28,6 +28,7 @@ begin
     # Instantiate, i.e. make sure that all packages are downloaded
     Pkg.instantiate()
 
+	using Revise
 	using ControlTimingSafety
     using Plots, PlutoUI, LaTeXStrings
 	using Random, Distributions
@@ -111,6 +112,8 @@ end
 
 # ╔═╡ 36cafaaa-e244-4404-8837-620a4285e76e
 md"""
+### Example 1: Effects of deadline misses
+
 We are now ready to simulate the delayed system under a user-selectable strategy, both with deadline misses and without.
 The nominal behavior, where no deadlines are missed, is shown in blue; other colors show trajectories with probabilistic deadline misses.  Try changing the miss strategy and simulation parameters below!
 
@@ -131,7 +134,7 @@ The nominal behavior, where no deadlines are missed, is shown in blue; other col
 
 # ╔═╡ 8dde22c7-0af1-4ffa-9cc6-fc8aa4f0d096
 md"""
-### Example 2: Random sequences of actions
+### Example 2: Random sampling of action sequences
 
 We next show a second example in which the same system is run for a large number of hit/miss sequences, selected at random with the constraint of no more than $n$ consecutive misses.  This example creates a plot similar to Figure 1 in [^hobbssafety].
 """
@@ -338,6 +341,74 @@ let
 end
   ╠═╡ =#
 
+# ╔═╡ c9856b8f-4341-4e33-9a73-3b1570fb24fa
+md"""
+## Bounded Tree Reachable Set
+
+In this section, we use a *bounded tree method* to compute a reachable set for the system under any sequence of deadline hits and misses.  In this method, we start with an axis-aligned box initial set, and simulate its evolution for $n$ steps, for each of the $O(|\mathcal{A}|^n)$ possible sequences of scheduler actions.  We then take an axis-aligned bounding box of the resulting sets, and repeat this process.
+
+This algorithm supports running any automaton, including those that implement different deadline miss strategies, and weakly-hard constraints.  This gives us power to model a variety of scheduler behaviors that have been considered in the literature.
+
+The ControlTimingSafety package provides the implementation of this algorithm.  Following [^hobbssafety], it is broken into two functions: one that simulates all possible runs for a bounded length of time, and another that runs the former iteratively.  This section demonstrates both.
+"""
+
+# ╔═╡ fbf988b0-7574-4dbb-929f-3d7df117d9dc
+md"""
+### Example 3: Bounded Runs algorithm
+
+This section illustrates the Bounded Runs algorithm, used to explore all possible sequences of actions for a small time horizon.  The example uses the same plant model and controller from the previous section, with a small initial set of states.
+
+|                         |                                                                             |
+|------------------------:|:----------------------------------------------------------------------------|
+|                Strategy | $(@bind sim_strategy_bounded_runs Select(strat_names))                      |
+|                     $n$ | $(@bind n_bounded_runs Slider(1:16, default=8,  show_value=true)) |
+|              Max misses | $(@bind maxmiss_bounded_runs Slider(-1:16, default=5, show_value=true)) |
+| Show nominal trajectory | $(@bind show_nom_traj_bounded_runs CheckBox(default=false))                                |
+"""
+
+# ╔═╡ 0843dd0e-0091-402f-9f28-fb112232f140
+bounds = [2; 2;; 2.5; 2.5]
+
+# ╔═╡ ef358d22-a530-4881-a282-b850d3655427
+begin
+	points_bounded_runs = let
+		automaton = strat_map[sim_strategy_bounded_runs](sysd, K, maxmiss_bounded_runs)
+		augbounds = augment(automaton, bounds)
+		bounded_runs(automaton, augbounds, n_bounded_runs)
+	end
+	
+	md"""
+	The reachable sets are computed in this cell and shown below.  Try enabling the sample trajectories, verifying that they remain inside the boxes for each time step.
+	
+	!!! warning
+	
+	    This is effectively a brute-force reachable set calculation for all hit/miss sequences of length $n$, with time complexity $O(|\mathcal{A}|^n)$.  It may take several minutes to compute with large values set on the sliders above.
+	"""
+end
+
+# ╔═╡ c4a6821b-deb9-4a2b-89db-09b382c72b1c
+let
+	plot(title="Reachable set for $(n_bounded_runs) time steps", xlabel="x_1", ylabel="x_2", legend=:bottomright)
+	merged = merge_bounds(points_bounded_runs)
+	for k = 0:n_bounded_runs
+		corners = corners_from_bounds(merged[begin+k,:,:], cycle=true, dims=1:2)
+		plot!(corners[1,:], corners[2,:], label=L"x[%$(k)]")
+	end
+	
+	if show_nom_traj_bounded_runs
+		hsn = hold_skip_next(sysd, K)
+	    x = evol(hsn, augment(hsn, [bounds[1,1], bounds[2,1]]), ones(Int64, n_bounded_runs))
+		plot!(x[:,1], x[:,2], label="Nominal", linecolor=:blue, marker=:circle)
+	    x = evol(hsn, augment(hsn, [bounds[1,1], bounds[2,2]]), ones(Int64, n_bounded_runs))
+		plot!(x[:,1], x[:,2], label="Nominal", linecolor=:blue, marker=:circle)
+	    x = evol(hsn, augment(hsn, [bounds[1,2], bounds[2,1]]), ones(Int64, n_bounded_runs))
+		plot!(x[:,1], x[:,2], label="Nominal", linecolor=:blue, marker=:circle)
+	    x = evol(hsn, augment(hsn, [bounds[1,2], bounds[2,2]]), ones(Int64, n_bounded_runs))
+		plot!(x[:,1], x[:,2], label="Nominal", linecolor=:blue, marker=:circle)
+	end
+	plot!()
+end
+
 # ╔═╡ 35b0c50d-4452-4003-b1f8-a6552b04df0b
 md"""
 ## Appendix
@@ -387,6 +458,11 @@ md"""
 # ╠═ea5c98dc-0496-43ec-a8f1-2566e0590c93
 # ╟─0bb32ddb-77c6-4196-90cd-9ecd27b9bf17
 # ╠═275a5d3f-2936-408d-9705-a807df9f0b79
+# ╟─c9856b8f-4341-4e33-9a73-3b1570fb24fa
+# ╟─fbf988b0-7574-4dbb-929f-3d7df117d9dc
+# ╟─0843dd0e-0091-402f-9f28-fb112232f140
+# ╟─ef358d22-a530-4881-a282-b850d3655427
+# ╟─c4a6821b-deb9-4a2b-89db-09b382c72b1c
 # ╟─35b0c50d-4452-4003-b1f8-a6552b04df0b
 # ╠═7e822d4c-3043-11ed-040a-f50d3cf62833
 # ╟─8b1dbd59-f31a-4833-9628-d62aba43cd28
