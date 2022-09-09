@@ -244,6 +244,15 @@ function zero_kill(sysd, K, miss=nothing)
               T, μ, 1)
 end
 
+strat_map = Dict(
+    "Hold&Skip-Next" => hold_skip_next,
+    "Zero&Skip-Next" => zero_skip_next,
+    "Hold&Kill" => hold_kill,
+    "Zero&Kill" => zero_kill
+)
+strat_names = sort([keys(strat_map)...])
+
+
 """
     evol_final(a, z_0, input)
 
