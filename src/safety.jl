@@ -126,7 +126,7 @@ function deviation(a::Automaton, bounds, reachable; dims=axes(bounds,1), metric:
     ev = Array{Float64}(undef, length(dims), 2^size(bounds,1), size(reachable, 1))
     corners = corners_from_bounds(bounds, dims=axes(bounds,1))
     for (i, c) in enumerate(eachcol(corners))
-        e, _ = evol(c, a, nominal)
+        e = evol(a, c, nominal)
         ev[:,i,:] = e'[dims,:]
     end
 

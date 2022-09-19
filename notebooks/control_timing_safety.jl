@@ -34,6 +34,7 @@ begin
 	using Random, Distributions
 	using Distances
 	using ControlSystems, LinearAlgebra
+	using Printf
 end
 
 # ╔═╡ b80a4d32-2a7b-4a59-8d04-d515471e86b4
@@ -52,7 +53,7 @@ $(TableOfContents())
 md"""
 ## Demonstration of Transducer Automata
 
-We begin by creating a two-dimensional LTI system, namely, the RC Network model from [^hobbssafety], in turn based on a circuit in [^gabelroberts].
+We begin by creating a two-dimensional LTI system, namely, the RC Network model from [^hobbssafety], which is in turn based on a circuit in [^gabelroberts].
 """
 
 # ╔═╡ 8c2d4565-5326-4fd3-8c3b-1491de1040ff
@@ -382,13 +383,13 @@ begin
 	
 	!!! warning
 	
-	    This is effectively a brute-force reachable set calculation for all hit/miss sequences of length $n$, with time complexity $O(|\mathcal{A}|^n)$.  It may take several minutes to compute with large values set on the sliders above.
+	    This is effectively a brute-force reachable set calculation for all hit/miss sequences of length $n$, with time complexity $O(|\mathcal{A}|^n)$.  It may take several minutes to compute with large values of $n$, especially if the system model is changed to something of higher dimension.
 	"""
 end
 
 # ╔═╡ c4a6821b-deb9-4a2b-89db-09b382c72b1c
 let
-	plot(title="Reachable set for $(n_bounded_runs) time steps", xlabel="x_1", ylabel="x_2", legend=:bottomright)
+	plot(title="Reachable set for $(n_bounded_runs) time steps", xlabel=L"x_1", ylabel=L"x_2", legend=:bottomright)
 	merged = merge_bounds(points_bounded_runs)
 	for k = 0:n_bounded_runs
 		corners = corners_from_bounds(merged[begin+k,:,:], cycle=true, dims=1:2)
@@ -407,6 +408,86 @@ let
 		plot!(x[:,1], x[:,2], label="Nominal", linecolor=:blue, marker=:circle)
 	end
 	plot!()
+end
+
+# ╔═╡ 4faa9d23-4212-412a-b0a9-785ad59c33f6
+md"""
+### Example 4: Bounded Runs Iteration algorithm
+
+This section illustrates the Bounded Runs Iteration algorithm, used to efficiently compute reachable sets for a transducer automaton.  Using the same system as in all the previous examples, we compute reachable sets for a large number of time steps.
+
+|                     |                                                              |
+|--------------------:|:-------------------------------------------------------------|
+|            Strategy | $(@bind sim_strategy_4 Select(strat_names))                  |
+|                 $n$ | $(@bind n_4 Slider(1:24, default=5, show_value=true))        |
+|          Max misses | $(@bind max_miss_4 Slider(-1:16, default=4, show_value=true))|
+|                 $t$ | $(@bind time_4 Slider(5:5:1000, default=100, show_value=true)) |
+| Sample trajectories | $(@bind sample_traj_4 CheckBox(default=false))               |
+"""
+
+# ╔═╡ efc6aa00-cfdb-45fb-809b-f99c663690f6
+begin
+	t_4 = div(time_4, n_4)
+	all_bounds = let
+		automaton = strat_map[sim_strategy_4](sysd, K, max_miss_4)
+		augbounds = augment(automaton, bounds)
+		bounded_runs_iter(automaton, augbounds, n_4, t_4)
+	end
+	
+	md"""
+	The reachable sets are computed in this cell and shown below.
+	
+	!!! warning
+	
+		This algorithm has time complexity $O(t |\mathcal{A}|^n)$, so for large values of both parameters, this could take an hour or more.
+	"""
+end
+
+# ╔═╡ a409101a-b132-4b5d-8d86-56bb59c0967a
+let
+	plot(title="Reachable set for $(time_4) time steps, $(n_4) per tree", xlabel=L"x_1", ylabel=L"x_2", legend=:bottomright)
+	for t in 1:time_4+1
+		corners = corners_from_bounds(all_bounds[t,:,:], cycle=true, dims=1:2)
+		plot!(corners[1,:], corners[2,:], label=L"x[%$(t-1)]")
+	end
+	
+	
+	if sample_traj_4
+		hsn = hold_skip_next(sysd, K)
+	    x = evol(hsn, augment(hsn, [bounds[1,1], bounds[2,1]]), ones(Int64, n_4*t_4))
+		plot!(x[:,1], x[:,2], label="Sample", linecolor=:blue, marker=:circle)
+	    x = evol(hsn, augment(hsn, [bounds[1,1], bounds[2,2]]), ones(Int64, n_4*t_4))
+		plot!(x[:,1], x[:,2], label="Sample", linecolor=:blue, marker=:circle)
+	    x = evol(hsn, augment(hsn, [bounds[1,2], bounds[2,1]]), ones(Int64, n_4*t_4))
+		plot!(x[:,1], x[:,2], label="Sample", linecolor=:blue, marker=:circle)
+	    x = evol(hsn, augment(hsn, [bounds[1,2], bounds[2,2]]), ones(Int64, n_4*t_4))
+		plot!(x[:,1], x[:,2], label="Sample", linecolor=:blue, marker=:circle)
+	end
+	plot!(legend=false)
+end
+
+# ╔═╡ 9eb76ec0-56e5-4008-9faf-418784d59513
+md"""
+Using these computed reachable sets, we finally compute the maximum deviation that is possible at each time step, highlighting the maximum.
+"""
+
+# ╔═╡ 7afec811-9ccc-4e93-9cc8-a3c6b6ee5c49
+let
+	automaton = strat_map[sim_strategy_4](sysd, K, max_miss_4)
+	d = deviation(automaton, augment(automaton, bounds), all_bounds, dims=1:2)[1:time_4+1]
+	i = argmax(d)
+	v = maximum(d)
+	
+	plot(title="Maximum deviation over time", xlabel="Time", ylabel="Deviation")
+	if v < 1e3
+		plot!(0:size(d,1)-1, d, label="Bounded Runs", linewidth=2)
+	else
+		# If the max is big, use a log scale.  Don't plot the first two points because they're guaranteed to be zero.
+		plot!(2:size(d,1)-1, d[3:end], label="Deviation", yaxis=:log)
+	end
+	
+	scatter!([i-1], [v], label="", color=:black, series_annotations=[text(" ($(i-1), $(@sprintf("%.4f", v))) ", (i < n_4*t_4/2) ? :left : :right)])
+	plot!(legend=:topright)
 end
 
 # ╔═╡ 35b0c50d-4452-4003-b1f8-a6552b04df0b
@@ -463,6 +544,11 @@ md"""
 # ╟─0843dd0e-0091-402f-9f28-fb112232f140
 # ╟─ef358d22-a530-4881-a282-b850d3655427
 # ╟─c4a6821b-deb9-4a2b-89db-09b382c72b1c
+# ╟─4faa9d23-4212-412a-b0a9-785ad59c33f6
+# ╟─efc6aa00-cfdb-45fb-809b-f99c663690f6
+# ╟─a409101a-b132-4b5d-8d86-56bb59c0967a
+# ╟─9eb76ec0-56e5-4008-9faf-418784d59513
+# ╟─7afec811-9ccc-4e93-9cc8-a3c6b6ee5c49
 # ╟─35b0c50d-4452-4003-b1f8-a6552b04df0b
 # ╠═7e822d4c-3043-11ed-040a-f50d3cf62833
 # ╟─8b1dbd59-f31a-4833-9628-d62aba43cd28
