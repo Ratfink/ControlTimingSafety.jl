@@ -1,10 +1,13 @@
 """
-    corners_from_bounds(bounds; cycle=false, dims=axes(bounds, 1))
+    corners_from_bounds(bounds::AbstractMatrix; cycle=false, dims=axes(bounds, 1))
 
 Returns the corners of the n-dimensional interval represented by `bounds`.  If `cycle` is `true`, the first corner is repeated at the end, and the corners are given in Gray code order.  Only the dimensions from `dims` are considered.
 """
-function corners_from_bounds(bounds; cycle=false, dims=axes(bounds, 1))
+function corners_from_bounds(bounds::AbstractMatrix; cycle=false, dims=axes(bounds, 1))
     ldims = length(dims)
+    if size(bounds, 2) == 1
+        return bounds
+    end
 
     corners = cat(reshape([[c...] for c in Base.product(eachrow(bounds[dims,:])...)], 2^ldims)..., dims=2)
     if cycle
@@ -14,6 +17,13 @@ function corners_from_bounds(bounds; cycle=false, dims=axes(bounds, 1))
         corners
     end
 end
+
+"""
+    corners_from_bounds(bounds::AbstractVector; cycle=nothing, dims=nothing)
+
+When applied to a vector, cast it to a one-column matrix.  `cycle` and `dims` are ignored.
+"""
+corners_from_bounds(bounds::AbstractVector; cycle=nothing, dims=nothing) = reshape(bounds, length(bounds), 1)
 
 _safefloatmin(x) = (isnan(x) || isinf(x)) ? +Inf : x
 _safefloatmax(x) = (isnan(x) || isinf(x)) ? -Inf : x
@@ -34,11 +44,11 @@ end
 
 Compute reachable sets for `n` time steps for the given automaton `a`, starting from the initial set given by `bounds`.
 
-`bounds` must be an `a.nz`×`2` matrix, whose first and second columns are the minimum and maximum along each dimension, respectively.
+`bounds` must be an `a.nz`-element vector, or an `a.nz`×`2` matrix whose first and second columns are the minimum and maximum along each dimension, respectively.
 
 Returns `(bounds, locs)`, where `bounds` is an `nactions(a)^n`×`n+1`×`a.nz`×`2` `Array{Float64}` giving the bounding box for each (run, time step), and `locs` is an `nactions(a)^n` `Array{Int64}` of final locations for each run (or zero if there is no such run).
 """
-function bounded_runs(a::Automaton, bounds, n)
+function bounded_runs(a::Automaton, bounds::AbstractVecOrMat, n)
     corners = corners_from_bounds(bounds)
 
     # Stack
@@ -87,10 +97,14 @@ end
 
 Iterate `bounded_runs(a, bounds, n)` for `t` iterations, returning the reachable set at each of the `n`×`t+1` time steps.
 """
-function bounded_runs_iter(a::Automaton, bounds, n, t)
+function bounded_runs_iter(a::Automaton, bounds::AbstractVecOrMat, n, t)
     # Dimensions: time, augmented state, min/max
     all_bounds = Array{Float64}(undef, n*(t+1)+1, a.nz, 2)
-    all_bounds[1,:,:] = bounds
+    if isa(bounds, AbstractVector)
+        all_bounds[1,:,:] = [bounds;; bounds]
+    else
+        all_bounds[1,:,:] = bounds
+    end
 
     bounds = bounded_runs(a, bounds, n)
     all_bounds[1:n+1,:,:] = merge_bounds(bounds)[:,:,1:end]
@@ -118,11 +132,16 @@ end
 
 Compute the deviation from the `nominal` behavior (default: all `1`) that is possible for the given automaton `a`, starting from the set of initial states `bounds`, within the `reachable` sets.  The deviation is computed using the specified `metric` from the [Distances.jl](https://www.juliapackages.com/p/distances) package.  If `dims` is specified, the deviation is computed for these dimensions only; otherwise, all dimensions are used.
 """
-function deviation(a::Automaton, bounds, reachable; dims=axes(bounds,1), metric::PreMetric=Euclidean(), nominal=repeat([1],size(reachable,1)-1))
+function deviation(a::Automaton, bounds::AbstractVecOrMat, reachable; dims=axes(bounds,1), metric::PreMetric=Euclidean(), nominal=repeat([1],size(reachable,1)-1))
     # Dimensions: state variables, points, time
     reachable_corners = cat([corners_from_bounds(reachable[t,:,:], dims=dims) for t in axes(reachable, 1)]..., dims=3)
 
     # Dimensions: state variables, points, time
+    if isa(bounds, AbstractVector)
+        # XXX Not the most memory-efficient solution, but keeps us from having
+        # to maintain two nearly-identical methods of the function.
+        bounds = [bounds;; bounds]
+    end
     ev = Array{Float64}(undef, length(dims), 2^size(bounds,1), size(reachable, 1))
     corners = corners_from_bounds(bounds, dims=axes(bounds,1))
     for (i, c) in enumerate(eachcol(corners))
