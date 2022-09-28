@@ -295,4 +295,5 @@ evol(a::Automaton, z_0, input) = evol_final(a, z_0, input)[1]
 
 Pad the state vector (or matrix of column vectors) `x` to as many dimensions as in the augmented state space of `a`.
 """
-augment(a::Automaton, x) = [x; zeros(a.nz - size(x, 1), size(x, 2))]
+augment(a::Automaton, x::AbstractMatrix) = [x; zeros(a.nz - size(x, 1), size(x, 2))]
+augment(a::Automaton, x::AbstractVector) = [x; zeros(a.nz - size(x, 1))]
