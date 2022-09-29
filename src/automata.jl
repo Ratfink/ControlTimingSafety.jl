@@ -258,7 +258,8 @@ strat_names = sort([keys(strat_map)...])
 
 Same as `evol`, but returns `(z, l)`, where `z` is a matrix of states over time, and `l` is the final location in the automaton.
 """
-function evol_final(a::Automaton, z_0, input)
+function evol_final(a::Automaton, z_0::AbstractVector{Float64}, input::AbstractVector{Int64})
+    @boundscheck length(z_0) == a.nz || throw(DimensionMismatch("z_0 must have length a.nz"))
     z = zeros(a.nz, length(input) + 1)
     z[:,1] = z_0
     l = a.l_int
@@ -288,7 +289,7 @@ Returns `z`, a matrix of states over time.
 
 See also `evol_final`, which additionally returns the final location in the automaton.
 """
-evol(a::Automaton, z_0, input) = evol_final(a, z_0, input)[1]
+evol(a::Automaton, z_0::AbstractVector{Float64}, input::AbstractVector{Int64}) = evol_final(a, z_0, input)[1]
 
 """
     augment(a, x)

@@ -3,11 +3,12 @@
 
 Returns the corners of the n-dimensional interval represented by `bounds`.  If `cycle` is `true`, the first corner is repeated at the end, and the corners are given in Gray code order.  Only the dimensions from `dims` are considered.
 """
-function corners_from_bounds(bounds::AbstractMatrix; cycle=false, dims=axes(bounds, 1))
-    ldims = length(dims)
+function corners_from_bounds(bounds::AbstractMatrix; cycle::Bool=false, dims=axes(bounds, 1))
+    @boundscheck dims ⊆ axes(bounds, 1) || throw(ArgumentError("All entries of dims must be valid indices to the first dimension of bounds"))
     if size(bounds, 2) == 1
         return bounds
     end
+    ldims = length(dims)
 
     corners = cat(reshape([[c...] for c in Base.product(eachrow(bounds[dims,:])...)], 2^ldims)..., dims=2)
     if cycle
@@ -23,7 +24,7 @@ end
 
 When applied to a vector, cast it to a one-column matrix.  `cycle` and `dims` are ignored.
 """
-corners_from_bounds(bounds::AbstractVector; cycle=nothing, dims=nothing) = reshape(bounds, length(bounds), 1)
+corners_from_bounds(bounds::AbstractVector; cycle::Bool=nothing, dims=nothing) = reshape(bounds, length(bounds), 1)
 
 _safefloatmin(x) = (isnan(x) || isinf(x)) ? +Inf : x
 _safefloatmax(x) = (isnan(x) || isinf(x)) ? -Inf : x
@@ -48,7 +49,7 @@ Compute reachable sets for `n` time steps for the given automaton `a`, starting 
 
 Returns `(bounds, locs)`, where `bounds` is an `nactions(a)^n`×`n+1`×`a.nz`×`2` `Array{Float64}` giving the bounding box for each (run, time step), and `locs` is an `nactions(a)^n` `Array{Int64}` of final locations for each run (or zero if there is no such run).
 """
-function bounded_runs(a::Automaton, bounds::AbstractVecOrMat, n)
+function bounded_runs(a::Automaton, bounds::AbstractVecOrMat, n::Integer)
     corners = corners_from_bounds(bounds)
 
     # Stack
@@ -97,7 +98,7 @@ end
 
 Iterate `bounded_runs(a, bounds, n)` for `t` iterations, returning the reachable set at each of the `n`×`t+1` time steps.
 """
-function bounded_runs_iter(a::Automaton, bounds::AbstractVecOrMat, n, t)
+function bounded_runs_iter(a::Automaton, bounds::AbstractVecOrMat, n::Integer, t::Integer)
     # Dimensions: time, augmented state, min/max
     all_bounds = Array{Float64}(undef, n*(t+1)+1, a.nz, 2)
     if isa(bounds, AbstractVector)
@@ -133,6 +134,9 @@ end
 Compute the deviation from the `nominal` behavior (default: all `1`) that is possible for the given automaton `a`, starting from the set of initial states `bounds`, within the `reachable` sets.  The deviation is computed using the specified `metric` from the [Distances.jl](https://www.juliapackages.com/p/distances) package.  If `dims` is specified, the deviation is computed for these dimensions only; otherwise, all dimensions are used.
 """
 function deviation(a::Automaton, bounds::AbstractVecOrMat, reachable; dims=axes(bounds,1), metric::PreMetric=Euclidean(), nominal=repeat([1],size(reachable,1)-1))
+    @boundscheck length(nominal) == size(reachable, 1) - 1 || throw(DimensionMismatch("nominal must have length size(reachable, 1) - 1"))
+    @boundscheck dims ⊆ axes(bounds, 1) || throw(ArgumentError("All entries of dims must be valid indices to the first dimension of bounds"))
+
     # Dimensions: state variables, points, time
     reachable_corners = cat([corners_from_bounds(reachable[t,:,:], dims=dims) for t in axes(reachable, 1)]..., dims=3)
 

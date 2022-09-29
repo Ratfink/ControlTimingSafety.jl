@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.11
+# v0.19.12
 
 #> [frontmatter]
 #> title = "ControlTimingSafety.jl Demo"
@@ -398,14 +398,11 @@ let
 	
 	if show_nom_traj_bounded_runs
 		hsn = hold_skip_next(sysd, K)
-	    x = evol(hsn, augment(hsn, [bounds[1,1], bounds[2,1]]), ones(Int64, n_bounded_runs))
-		plot!(x[:,1], x[:,2], label="Nominal", linecolor=:blue, marker=:circle)
-	    x = evol(hsn, augment(hsn, [bounds[1,1], bounds[2,2]]), ones(Int64, n_bounded_runs))
-		plot!(x[:,1], x[:,2], label="Nominal", linecolor=:blue, marker=:circle)
-	    x = evol(hsn, augment(hsn, [bounds[1,2], bounds[2,1]]), ones(Int64, n_bounded_runs))
-		plot!(x[:,1], x[:,2], label="Nominal", linecolor=:blue, marker=:circle)
-	    x = evol(hsn, augment(hsn, [bounds[1,2], bounds[2,2]]), ones(Int64, n_bounded_runs))
-		plot!(x[:,1], x[:,2], label="Nominal", linecolor=:blue, marker=:circle)
+		corners = augment(hsn, corners_from_bounds(bounds, dims=[1,2]))
+		for c in eachcol(corners)
+	    	x = evol(hsn, c, ones(Int64, n_bounded_runs))
+			plot!(x[:,1], x[:,2], label="Sample", linecolor=:blue, marker=:circle)
+		end
 	end
 	plot!()
 end
@@ -451,17 +448,13 @@ let
 		plot!(corners[1,:], corners[2,:], label=L"x[%$(t-1)]")
 	end
 	
-	
 	if sample_traj_4
 		hsn = hold_skip_next(sysd, K)
-	    x = evol(hsn, augment(hsn, [bounds[1,1], bounds[2,1]]), ones(Int64, n_4*t_4))
-		plot!(x[:,1], x[:,2], label="Sample", linecolor=:blue, marker=:circle)
-	    x = evol(hsn, augment(hsn, [bounds[1,1], bounds[2,2]]), ones(Int64, n_4*t_4))
-		plot!(x[:,1], x[:,2], label="Sample", linecolor=:blue, marker=:circle)
-	    x = evol(hsn, augment(hsn, [bounds[1,2], bounds[2,1]]), ones(Int64, n_4*t_4))
-		plot!(x[:,1], x[:,2], label="Sample", linecolor=:blue, marker=:circle)
-	    x = evol(hsn, augment(hsn, [bounds[1,2], bounds[2,2]]), ones(Int64, n_4*t_4))
-		plot!(x[:,1], x[:,2], label="Sample", linecolor=:blue, marker=:circle)
+		corners = augment(hsn, corners_from_bounds(bounds, dims=[1,2]))
+		for c in eachcol(corners)
+	    	x = evol(hsn, c, ones(Int64, n_4*t_4))
+			plot!(x[:,1], x[:,2], label="Sample", linecolor=:blue, marker=:circle)
+		end
 	end
 	plot!(legend=false)
 end
