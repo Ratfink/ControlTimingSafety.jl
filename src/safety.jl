@@ -24,7 +24,7 @@ end
 
 When applied to a vector, cast it to a one-column matrix.  `cycle` and `dims` are ignored.
 """
-corners_from_bounds(bounds::AbstractVector; cycle::Bool=nothing, dims=nothing) = reshape(bounds, length(bounds), 1)
+corners_from_bounds(bounds::AbstractVector; cycle=nothing, dims=nothing) = reshape(bounds, length(bounds), 1)
 
 _safefloatmin(x) = (isnan(x) || isinf(x)) ? +Inf : x
 _safefloatmax(x) = (isnan(x) || isinf(x)) ? -Inf : x
