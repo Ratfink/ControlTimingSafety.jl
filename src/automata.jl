@@ -4,17 +4,28 @@
 
 A transducer automaton.
 
-# Fields
-
-* `Φ`: dynamics matrices (output alphabet).  Array of square matrices of size `nz`×`nz`.
-* `T`: transition function.  `T[l,a]` is a location in `1:L`, or `missing` if no transition.
-* `μ`: output function.  `μ[l,a]` is an index into `Φ`, or `missing` if no transition.
-* `l_int`: initial location in `1:L`.
+See also the constructors [`hold_kill`](@ref), [`hold_skip_next`](@ref),
+[`zero_kill`](@ref), and [`zero_skip_next`](@ref), which create `Automaton` objects for
+common deadline miss handling strategies.  For use in notebooks, etc., see
+[`strat_map`](@ref) and [`strat_names`](@ref).
 """
 struct Automaton
+    """
+    `Φ`: dynamics matrices (output alphabet).  Array of square matrices of size `nz`×`nz`.
+    """
     Φ::Vector{AbstractMatrix{Float64}}
+    """
+    `T`: transition function.  `T[l,a]` is a location in `1:L`, or `missing` if no
+    transition.
+    """
     T::Matrix{Union{Missing, Int64}}
+    """
+    `μ`: output function.  `μ[l,a]` is an index into `Φ`, or `missing` if no transition.
+    """
     μ::Matrix{Union{Missing, Int64}}
+    """
+    `l_int`: initial location in `1:L`.
+    """
     l_int::Int64
 
     function Automaton(Φ, T, μ, l_int)
@@ -23,8 +34,8 @@ struct Automaton
         @boundscheck all(t -> t == (nz, nz), size.(Φ)) || throw(DimensionMismatch("All matrices in Φ must be square and equal size"))
         @boundscheck size(T) == size(μ) || throw(DimensionMismatch("T and μ must be of equal size"))
         @boundscheck l_int ∈ axes(T, 1) || throw(ArgumentError("l_int must be a valid index to the first dimension of T"))
-	@boundscheck all(t -> ismissing(t) || t ∈ axes(T, 1), T) || throw(ArgumentError("All entries of T must be valid indices to the first dimension of T or missing"))
-	@boundscheck all(t -> ismissing(t) || t ∈ axes(Φ, 1), μ) || throw(ArgumentError("All entries of μ must be valid indices to Φ or missing"))
+        @boundscheck all(t -> ismissing(t) || t ∈ axes(T, 1), T) || throw(ArgumentError("All entries of T must be valid indices to the first dimension of T or missing"))
+        @boundscheck all(t -> ismissing(t) || t ∈ axes(Φ, 1), μ) || throw(ArgumentError("All entries of μ must be valid indices to Φ or missing"))
 
         new(Φ, T, μ, l_int)
     end
@@ -52,7 +63,7 @@ end
 """
     Automaton_lint(a, l_int)
 
-Construct a copy of the `Automaton` `a` with a new `l_int`.
+Construct a copy of the [`Automaton`](@ref) `a` with a new `l_int`.
 """
 function Automaton_lint(a::Automaton, l_int::Int64)
     @boundscheck l_int ∈ a.L || throw(ArgumentError("l_int must be a valid location in a.L"))
@@ -63,7 +74,9 @@ end
 """
     hold_skip_next(sysd, K, miss=nothing)
 
-Construct an `Automaton` for the given discrete-time state space model `sysd` with feedback gain matrix `K`, following the Hold&Skip-Next strategy, with at most `miss` deadline misses.
+Construct an [`Automaton`](@ref) for the given discrete-time state space model `sysd` with
+feedback gain matrix `K`, following the Hold&Skip-Next strategy, with at most `miss`
+deadline misses.
 """
 function hold_skip_next(sysd, K, miss=nothing)
     p, r = size(sysd.B)
@@ -115,7 +128,9 @@ end
 """
     zero_skip_next(sysd, K, miss=nothing)
 
-Construct an `Automaton` for the given discrete-time state space model `sysd` with feedback gain matrix `K`, following the Zero&Skip-Next strategy, with at most `miss` deadline misses.
+Construct an [`Automaton`](@ref) for the given discrete-time state space model `sysd` with
+feedback gain matrix `K`, following the Zero&Skip-Next strategy, with at most `miss`
+deadline misses.
 """
 function zero_skip_next(sysd, K, miss=nothing)
     p, r = size(sysd.B)
@@ -167,7 +182,9 @@ end
 """
     hold_kill(sysd, K, miss=nothing)
 
-Construct an `Automaton` for the given discrete-time state space model `sysd` with feedback gain matrix `K`, following the Hold&Kill strategy, with at most `miss` deadline misses.
+Construct an [`Automaton`](@ref) for the given discrete-time state space model `sysd` with
+feedback gain matrix `K`, following the Hold&Kill strategy, with at most `miss` deadline
+misses.
 """
 function hold_kill(sysd, K, miss=nothing)
     p, r = size(sysd.B)
@@ -207,7 +224,9 @@ end
 """
     zero_kill(sysd, K, miss=nothing)
 
-Construct an `Automaton` for the given discrete-time state space model `sysd` with feedback gain matrix `K`, following the Zero&Kill strategy, with at most `miss` deadline misses.
+Construct an [`Automaton`](@ref) for the given discrete-time state space model `sysd` with
+feedback gain matrix `K`, following the Zero&Kill strategy, with at most `miss` deadline
+misses.
 """
 function zero_kill(sysd, K, miss=nothing)
     p, r = size(sysd.B)
@@ -244,19 +263,28 @@ function zero_kill(sysd, K, miss=nothing)
               T, μ, 1)
 end
 
+"""
+A mapping from human-readable names to [`Automaton`](@ref) constructor functions.
+
+See also [`strat_names`](@ref).
+"""
 strat_map = Dict(
     "Hold&Skip-Next" => hold_skip_next,
     "Zero&Skip-Next" => zero_skip_next,
     "Hold&Kill" => hold_kill,
     "Zero&Kill" => zero_kill
 )
+"""
+A stable, sorted list of the human-readable names in [`strat_map`](@ref).
+"""
 strat_names = sort([keys(strat_map)...])
 
 
 """
     evol_final(a, z_0, input)
 
-Same as `evol`, but returns `(z, l)`, where `z` is a matrix of states over time, and `l` is the final location in the automaton.
+Same as [`evol`](@ref), but returns `(z, l)`, where `z` is a matrix of states over time,
+and `l` is the final location in the automaton.
 """
 function evol_final(a::Automaton, z_0::AbstractVector{Float64}, input::AbstractVector{Int64})
     @boundscheck length(z_0) == a.nz || throw(DimensionMismatch("z_0 must have length a.nz"))
@@ -283,18 +311,21 @@ end
 """
     evol(a, z_0, input)
 
-Simulate a run of automaton `a` from the initial state `z_0`, using the sequence of scheduler events `input`.
+Simulate a run of [`Automaton`](@ref) `a` from the initial state `z_0`, using the sequence
+of scheduler events `input`.
 
 Returns `z`, a matrix of states over time.
 
-See also `evol_final`, which additionally returns the final location in the automaton.
+See also [`evol_final`](@ref), which additionally returns the final location in the
+automaton.
 """
 evol(a::Automaton, z_0::AbstractVector{Float64}, input::AbstractVector{Int64}) = evol_final(a, z_0, input)[1]
 
 """
-    augment(a, x)
+    augment(a::Automaton, x)
 
-Pad the state vector (or matrix of column vectors) `x` to as many dimensions as in the augmented state space of `a`.
+Pad the state vector (or matrix of column vectors) `x` to as many dimensions as in the
+augmented state space of `a`.
 """
 augment(a::Automaton, x::AbstractMatrix) = [x; zeros(a.nz - size(x, 1), size(x, 2))]
 augment(a::Automaton, x::AbstractVector) = [x; zeros(a.nz - size(x, 1))]
