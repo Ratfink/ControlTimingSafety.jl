@@ -1,6 +1,6 @@
 using ControlTimingSafety
 using Test
-using ControlSystems
+using ControlSystemsBase
 
 @testset "ControlTimingSafety.jl" begin
     @testset "Automaton constructors" begin
