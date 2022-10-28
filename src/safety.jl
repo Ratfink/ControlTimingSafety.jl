@@ -119,7 +119,7 @@ function bounded_runs_iter(a::Automaton, bounds::AbstractVecOrMat, n::Integer, t
     # Dimensions: time, augmented state, min/max
     all_bounds = Array{Float64}(undef, n*(t+1)+1, a.nz, 2)
     if isa(bounds, AbstractVector)
-        all_bounds[1,:,:] = [bounds;; bounds]
+        all_bounds[1,:,:] = [bounds bounds]
     else
         all_bounds[1,:,:] = bounds
     end
@@ -158,7 +158,7 @@ See also [`bounded_runs`](@ref) and [`bounded_runs_iter`](@ref), which can be us
 compute `reachable`.
 """
 function deviation(a::Automaton, bounds::AbstractVecOrMat, reachable; dims=axes(bounds,1),
-                   metric::PreMetric=Euclidean(), nominal=repeat([1],size(reachable,1)-1))
+                   metric::PreMetric=Euclidean(), nominal=ones(Int64,size(reachable,1)-1))
     @boundscheck length(nominal) == size(reachable, 1) - 1 || throw(DimensionMismatch("nominal must have length size(reachable, 1) - 1"))
     @boundscheck dims ⊆ axes(bounds, 1) || throw(ArgumentError("All entries of dims must be valid indices to the first dimension of bounds"))
 
@@ -169,7 +169,7 @@ function deviation(a::Automaton, bounds::AbstractVecOrMat, reachable; dims=axes(
     if isa(bounds, AbstractVector)
         # XXX Not the most memory-efficient solution, but keeps us from having
         # to maintain two nearly-identical methods of the function.
-        bounds = [bounds;; bounds]
+        bounds = [bounds bounds]
     end
     ev = Array{Float64}(undef, length(dims), 2^size(bounds,1), size(reachable, 1))
     corners = corners_from_bounds(bounds, dims=axes(bounds,1))
