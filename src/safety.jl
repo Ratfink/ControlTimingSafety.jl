@@ -132,7 +132,7 @@ function bounded_runs_iter(a::Automaton, bounds::AbstractVecOrMat, n::Integer, t
     for i in 1:t
         # Simulate each box from previous iteration
         for i in a.L
-            a = Automaton_lint(a, i)
+            a = Automaton(a, i)
             new_bounds[i,:,:,:,:] = bounded_runs(a, bounds[i,end,:,:], n)
         end
         # Merge resulting boxes from these simulations

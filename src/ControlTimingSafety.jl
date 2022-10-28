@@ -4,7 +4,7 @@ using LinearAlgebra
 using Distances
 
 export Automaton, nlocations, nactions
-export Automaton_lint, hold_skip_next, zero_skip_next, hold_kill, zero_kill
+export hold_skip_next, zero_skip_next, hold_kill, zero_kill
 export strat_map, strat_names
 export evol_final, evol, augment
 include("automata.jl")

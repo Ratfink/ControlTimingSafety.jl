@@ -61,11 +61,11 @@ function Base.propertynames(a::Automaton, private::Bool=false)
 end
 
 """
-    Automaton_lint(a, l_int)
+    Automaton(a, l_int)
 
 Construct a copy of the [`Automaton`](@ref) `a` with a new `l_int`.
 """
-function Automaton_lint(a::Automaton, l_int::Int64)
+function Automaton(a::Automaton, l_int::Int64)
     @boundscheck l_int ∈ a.L || throw(ArgumentError("l_int must be a valid location in a.L"))
 
     @inbounds Automaton(a.Φ, a.T, a.μ, l_int)
