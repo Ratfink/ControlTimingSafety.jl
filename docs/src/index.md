@@ -5,7 +5,7 @@
 This package, for the time being, consists primarily of an implementation of
 the Bounded Runs Iteration algorithm from the paper "Safety Analysis of
 Embedded Controllers under Implementation Platform Timing Uncertainties."  See
-the [Citing](#citing) section below for more information.
+the [Citing](@ref) section below for more information.
 
 ## Installation
 
