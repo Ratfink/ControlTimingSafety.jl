@@ -1,9 +1,6 @@
-# ControlTimingSafety
+# ControlTimingSafety.jl
 
-[![Build Status](https://github.com/Ratfink/ControlTimingSafety.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/Ratfink/ControlTimingSafety.jl/actions/workflows/CI.yml?query=branch%3Amain)
-
-Tools for verifying safety of control systems that may experience timing
-uncertainty.
+*Tools for verifying safety of control systems that may experience timing uncertainty*
 
 This package, for the time being, consists primarily of an implementation of
 the Bounded Runs Iteration algorithm from the paper "Safety Analysis of
@@ -22,7 +19,7 @@ using Pkg; Pkg.add(url="https://github.com/Ratfink/ControlTimingSafety.jl")
 
 Given a discrete-time state space model `sys` from the
 [ControlSystems.jl](https://github.com/JuliaControl/ControlSystems.jl) package,
-and a feedback gain matrix `K`, first create an Automaton object using one of
+and a feedback gain matrix `K`, first create an [`Automaton`](@ref) object using one of
 the constructors for the strategies described in the paper:
 
 ```julia
@@ -48,7 +45,7 @@ d = deviation(automaton, augbounds, all_bounds)
 ```
 
 For a complete example, see the demo [Pluto](https://github.com/fonsp/Pluto.jl)
-notebook, `notebooks/control_timing_safety.jl`.
+notebook, `notebooks/control_timing_safety.jl`, included in the package.
 
 ## Citing
 
