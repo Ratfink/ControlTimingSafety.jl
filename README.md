@@ -1,6 +1,7 @@
 # ControlTimingSafety
 
 [![Build Status](https://github.com/Ratfink/ControlTimingSafety.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/Ratfink/ControlTimingSafety.jl/actions/workflows/CI.yml?query=branch%3Amain)
+[![Documentation Status](https://github.com/Ratfink/ControlTimingSafety.jl/workflows/Documentation/badge.svg)](https://github.com/Ratfink/ControlTimingSafety.jl/actions?query=workflow%3ADocumentation)
 
 Tools for verifying safety of control systems that may experience timing
 uncertainty.
