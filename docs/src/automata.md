@@ -16,7 +16,13 @@ As a user of ControlTimingSafety, you will likely not want to construct an
 [`Automaton`](@ref) directly.  The package provides external constructors that
 create an [`Automaton`](@ref) from a `StateSpace` model from
 [ControlSystems.jl](https://github.com/JuliaControl/ControlSystems.jl),
-following different strategies of how to handle deadline misses.
+following different strategies of how to handle deadline misses.  Constraints
+may be specified using `WeaklyHardConstraint` objects from
+[RealTimeScheduling.jl](https://github.com/Ratfink/RealTimeScheduling.jl).
+
+!!! note
+    Currently, only `MissRow` constraints are supported, but more constraints
+    will be added in the future!
 
 ```@docs
 hold_kill
