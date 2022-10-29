@@ -1,3 +1,4 @@
+import RealTimeScheduling
 
 """
     Automaton(Φ, T, μ, l_int)
@@ -72,13 +73,21 @@ function Automaton(a::Automaton, l_int::Int64)
 end
 
 """
-    hold_skip_next(sysd, K, miss=nothing)
+    hold_skip_next(sysd, K, [c])
 
 Construct an [`Automaton`](@ref) for the given discrete-time state space model `sysd` with
-feedback gain matrix `K`, following the Hold&Skip-Next strategy, with at most `miss`
-deadline misses.
+feedback gain matrix `K`, following the Hold&Skip-Next strategy.  If `c` is specified, the
+resulting `Automaton` will permit only that weakly hard constraint.
 """
-function hold_skip_next(sysd, K, miss=nothing)
+function hold_skip_next(sysd, K)
+    _hold_skip_next(sysd, K, _skip_next()...)
+end
+
+function hold_skip_next(sysd, K, c::RealTimeScheduling.MissRow)
+    _hold_skip_next(sysd, K, _skip_next(c)...)
+end
+
+function _hold_skip_next(sysd, K, T, μ)
     p, r = size(sysd.B)
 
     # Split apart the pieces of K, if necessary
@@ -87,22 +96,6 @@ function hold_skip_next(sysd, K, miss=nothing)
         K_u = -K[:,p+1:p+r]
     else
         K_u = zeros((r, r))
-    end
-
-    # Define the automaton's structure
-    if miss === nothing || miss == -1
-        T = [1 2;
-             1 2]
-        μ = [1 3;
-             2 4]
-    elseif miss == 0
-        T = [1 missing]
-        μ = [1 missing]
-    else
-        T = [ones(Int64, (miss+1, 1)) [collect(2:miss+1); missing]]
-        μ = [1 3;
-             repeat([2 4], miss-1, 1);
-             2 missing]
     end
 
     # Put it all together, with the Φ matrices
@@ -125,14 +118,43 @@ function hold_skip_next(sysd, K, miss=nothing)
               T, μ, 1)
 end
 
+function _skip_next()
+    T = [1 2;
+         1 2]
+    μ = [1 3;
+         2 4]
+    return T, μ
+end
+
+function _skip_next(c::RealTimeScheduling.MissRow)
+    if c.miss == 0
+        T = [1 missing]
+        μ = [1 missing]
+    else
+        T = [ones(Int64, (c.miss+1, 1)) [collect(2:c.miss+1); missing]]
+        μ = [1 3;
+             repeat([2 4], c.miss-1, 1);
+             2 missing]
+    end
+    return T, μ
+end
+
 """
-    zero_skip_next(sysd, K, miss=nothing)
+    zero_skip_next(sysd, K, [c])
 
 Construct an [`Automaton`](@ref) for the given discrete-time state space model `sysd` with
-feedback gain matrix `K`, following the Zero&Skip-Next strategy, with at most `miss`
-deadline misses.
+feedback gain matrix `K`, following the Zero&Skip-Next strategy.  If `c` is specified, the
+resulting `Automaton` will permit only that weakly hard constraint.
 """
-function zero_skip_next(sysd, K, miss=nothing)
+function zero_skip_next(sysd, K)
+    _zero_skip_next(sysd, K, _skip_next()...)
+end
+
+function zero_skip_next(sysd, K, c::RealTimeScheduling.MissRow)
+    _zero_skip_next(sysd, K, _skip_next(c)...)
+end
+
+function _zero_skip_next(sysd, K, T, μ)
     p, r = size(sysd.B)
 
     # Split apart the pieces of K, if necessary
@@ -141,22 +163,6 @@ function zero_skip_next(sysd, K, miss=nothing)
         K_u = -K[:,p+1:p+r]
     else
         K_u = zeros((r, r))
-    end
-
-    # Define the automaton's structure
-    if miss === nothing || miss == -1
-        T = [1 2;
-             1 2]
-        μ = [1 3;
-             2 4]
-    elseif miss == 0
-        T = [1 missing]
-        μ = [1 missing]
-    else
-        T = [ones(Int64, (miss+1, 1)) [collect(2:miss+1); missing]]
-        μ = [1 3;
-             repeat([2 4], miss-1, 1);
-             2 missing]
     end
 
     # Put it all together, with the Φ matrices
@@ -180,13 +186,21 @@ function zero_skip_next(sysd, K, miss=nothing)
 end
 
 """
-    hold_kill(sysd, K, miss=nothing)
+    hold_kill(sysd, K, [c])
 
 Construct an [`Automaton`](@ref) for the given discrete-time state space model `sysd` with
-feedback gain matrix `K`, following the Hold&Kill strategy, with at most `miss` deadline
-misses.
+feedback gain matrix `K`, following the Hold&Kill strategy.  If `c` is specified, the
+resulting `Automaton` will permit only that weakly hard constraint.
 """
-function hold_kill(sysd, K, miss=nothing)
+function hold_kill(sysd, K)
+    _hold_kill(sysd, K, _kill()...)
+end
+
+function hold_kill(sysd, K, c::RealTimeScheduling.MissRow)
+    _hold_kill(sysd, K, _kill(c)...)
+end
+
+function _hold_kill(sysd, K, T, μ)
     p, r = size(sysd.B)
 
     # Split apart the pieces of K, if necessary
@@ -195,20 +209,6 @@ function hold_kill(sysd, K, miss=nothing)
         K_u = -K[:,p+1:p+r]
     else
         K_u = zeros((r, r))
-    end
-
-    # Define the automaton's structure
-    if miss === nothing || miss == -1
-        T = [1 1]
-        μ = [1 2]
-    elseif miss == 0
-        T = [1 missing]
-        μ = [1 missing]
-    else
-        T = [ones(Int64, (miss+1, 1)) [collect(2:miss+1); missing]]
-        μ = [1 2;
-             repeat([1 2], miss-1, 1);
-             1 missing]
     end
 
     # Put it all together, with the Φ matrices
@@ -221,14 +221,41 @@ function hold_kill(sysd, K, miss=nothing)
               T, μ, 1)
 end
 
+function _kill()
+    T = [1 1]
+    μ = [1 2]
+    return T, μ
+end
+
+function _kill(c::RealTimeScheduling.MissRow)
+    if c.miss == 0
+        T = [1 missing]
+        μ = [1 missing]
+    else
+        T = [ones(Int64, (c.miss+1, 1)) [collect(2:c.miss+1); missing]]
+        μ = [1 2;
+             repeat([1 2], c.miss-1, 1);
+             1 missing]
+    end
+    return T, μ
+end
+
 """
-    zero_kill(sysd, K, miss=nothing)
+    zero_kill(sysd, K, [c])
 
 Construct an [`Automaton`](@ref) for the given discrete-time state space model `sysd` with
-feedback gain matrix `K`, following the Zero&Kill strategy, with at most `miss` deadline
-misses.
+feedback gain matrix `K`, following the Zero&Kill strategy.  If `c` is specified, the
+resulting `Automaton` will permit only that weakly hard constraint.
 """
-function zero_kill(sysd, K, miss=nothing)
+function zero_kill(sysd, K)
+    _zero_kill(sysd, K, _kill()...)
+end
+
+function zero_kill(sysd, K, c::RealTimeScheduling.MissRow)
+    _zero_kill(sysd, K, _kill(c)...)
+end
+
+function _zero_kill(sysd, K, T, μ)
     p, r = size(sysd.B)
 
     # Split apart the pieces of K, if necessary
@@ -237,20 +264,6 @@ function zero_kill(sysd, K, miss=nothing)
         K_u = -K[:,p+1:p+r]
     else
         K_u = zeros((r, r))
-    end
-
-    # Define the automaton's structure
-    if miss === nothing || miss == -1
-        T = [1 1]
-        μ = [1 2]
-    elseif miss == 0
-        T = [1 missing]
-        μ = [1 missing]
-    else
-        T = [ones(Int64, (miss+1, 1)) [collect(2:miss+1); missing]]
-        μ = [1 2;
-             repeat([1 2], miss-1, 1);
-             1 missing]
     end
 
     # Put it all together, with the Φ matrices

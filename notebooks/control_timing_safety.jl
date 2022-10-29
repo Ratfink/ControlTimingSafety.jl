@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.12
+# v0.19.14
 
 #> [frontmatter]
 #> title = "ControlTimingSafety.jl Demo"
@@ -30,6 +30,7 @@ begin
 
 	using Revise
 	using ControlTimingSafety
+	using RealTimeScheduling
     using Plots, PlutoUI, LaTeXStrings
 	using Random, Distributions
 	using Distances
@@ -133,6 +134,27 @@ The nominal behavior, where no deadlines are missed, is shown in blue; other col
 | $(@bind recompute_plot Button("🎲 Randomize")) |
 """
 
+# ╔═╡ 2ccd0233-8503-4fcb-be27-f8bf78df3219
+let
+	# Recompute when the button is clicked
+	recompute_plot
+	
+	automaton = strat_map[sim_strategy](sysd, K)
+	
+	hit_prob = [1, hit_prob_1, hit_prob_2, hit_prob_3]
+	line_colors = [:blue, :orange, :red, :purple]
+	z_0 = augment(automaton, [x_0_1, x_0_2])
+	
+	z = [0]
+	plot(title="Trajectories for different hit probabilities", xlabel=L"x_1", ylabel=L"x_2", legend=:bottomright)
+	for i = size(hit_prob, 1):-1:1
+	    seq = (rand(sim_time) .>= hit_prob[i]) .+ 1
+		z = evol(automaton, z_0, seq)
+	    plot!(z[:,1], z[:,2], label=L"P(\mathrm{hit}) = %$(hit_prob[i])", linecolor=line_colors[i])
+	end
+	plot!()
+end
+
 # ╔═╡ 8dde22c7-0af1-4ffa-9cc6-fc8aa4f0d096
 md"""
 ### Example 2: Random sampling of action sequences
@@ -145,7 +167,7 @@ md"""
 |                   |                                                              |
 |------------------:|:-------------------------------------------------------------|
 |          Strategy | $(@bind strategy_2 Select(strat_names))                      |
-|    Max misses $n$ | $(@bind maxmiss_2 Slider(-1:16, default=5, show_value=true)) |
+|    Max misses $n$ | $(@bind maxmiss_2 Slider(0:16, default=5, show_value=true)) |
 | Number of samples | $(@bind n_samples_2 NumberField(5:5:100, default=100))       |
 |   Simulation time | $(@bind H_2 Slider(5:5:500, default=100, show_value=true))   |
 |          $x_1[0]$ | $(@bind x₀_1_2 NumberField(-10:0.1:10, default=-1))           |
@@ -175,92 +197,6 @@ md"""
 Next, we compute all the random trajectories.  An extra check is done to bias towards more interesting-looking trajectories, making the sampling in the plot not truly uniform.
 """
 
-# ╔═╡ 5926e7e5-1e4b-408e-a02a-6941bfb95845
-md"""
-We next compute the distance between each point of each random trajectory and the corresponding point of the nominal trajectory.
-"""
-
-# ╔═╡ 79f22b98-8bf7-465b-b900-81b22a4b0ca8
-md"""
-Using this distance, we compute the deviation between each random trajectory and the nominal one.
-"""
-
-# ╔═╡ d9ed868d-ee5b-4470-8edc-3b6adb429500
-md"""
-In order for this random sampling to work, we need a way to perform this uniform sampling.  Fortunately, Julia provides a nice API for sampling random values from different types of data and distributions.  We next create a `Sampler` type for uniformly sampling strings with at most $k$ misses in a row, of length $H$.
-"""
-
-# ╔═╡ ea5c98dc-0496-43ec-a8f1-2566e0590c93
-struct SamplerAutomatonInput <: Random.Sampler{Int64}
-	l::Matrix{BigInt}
-	function SamplerAutomatonInput(k_miss, H)
-		l = zeros(BigInt, k_miss+2, H+1)
-		l[1:k_miss+1, 1] .= 1
-		for i = 2:H+1
-			for q = 1:k_miss+2
-				if q == k_miss+2
-					l[q, i] = 2 * l[q, i-1]
-				else
-					l[q, i] = l[q+1, i-1] + l[1, i-1]
-				end
-			end
-		end
-		new(l)
-	end
-end
-
-# ╔═╡ 0bb32ddb-77c6-4196-90cd-9ecd27b9bf17
-md"""
-We next define a method of the function `Random.rand` that allows us to sample from this distribution.
-"""
-
-# ╔═╡ 275a5d3f-2936-408d-9705-a807df9f0b79
-function Random.rand(rng::AbstractRNG, sp::SamplerAutomatonInput)
-	k_miss = size(sp.l, 1) - 2
-	H = size(sp.l, 2) - 1
-	q = 0
-	ret = zeros(Int64, H)
-	for i = 1:H
-		d = BigFloat(sp.l[q + 1, H - i + 2])
-		if q == k_miss + 1
-			prob_one = sp.l[q + 1, H - i + 1] / d
-		else
-			prob_one = sp.l[1, H - i + 1] / d
-		end
-		rand_bit = Random.rand(Binomial(1, Float64(prob_one)))
-		ret[i] = rand_bit
-		if rand_bit == 1
-			if q != k_miss + 1
-				q = 0
-			end
-		elseif q != k_miss + 1
-			q += 1
-		end
-	end
-	2 .- ret
-end
-
-# ╔═╡ 2ccd0233-8503-4fcb-be27-f8bf78df3219
-let
-	# Recompute when the button is clicked
-	recompute_plot
-	
-	automaton = strat_map[sim_strategy](sysd, K)
-	
-	hit_prob = [1, hit_prob_1, hit_prob_2, hit_prob_3]
-	line_colors = [:blue, :orange, :red, :purple]
-	z_0 = augment(automaton, [x_0_1, x_0_2])
-	
-	z = [0]
-	plot(title="Trajectories for different hit probabilities", xlabel=L"x_1", ylabel=L"x_2", legend=:bottomright)
-	for i = size(hit_prob, 1):-1:1
-	    seq = (rand(sim_time) .>= hit_prob[i]) .+ 1
-		z = evol(automaton, z_0, seq)
-	    plot!(z[:,1], z[:,2], label=L"P(\mathrm{hit}) = %$(hit_prob[i])", linecolor=line_colors[i])
-	end
-	plot!()
-end
-
 # ╔═╡ a6b57e9d-0d61-41f1-96ff-4502daa0ba4a
 trj_2 = let
 	# Recompute when the button is clicked
@@ -270,14 +206,14 @@ trj_2 = let
 	z₀ = augment(T, [x₀_1_2, x₀_2_2])
 
 	# Compute random trajectories
-	sp = SamplerAutomatonInput(maxmiss_2, H_2)
+	sp = SamplerUniformMissRow(MissRow(maxmiss_2), H_2)
 	seq = ones(Int64, H_2)
 	trj = Array{Float64}(undef, n_samples_2, H_2+1, size(T.Φ[1], 1))
 	max_possible = (H_2 / (maxmiss_2 + 1)) * maxmiss_2 + H_2 % (maxmiss_2 + 1)
 	for i = axes(trj, 1)
 		accepted = false
 		while !accepted
-			seq = rand(sp)
+			seq = 2 .- rand(sp)
 			if rand(Float64) > sum(seq .== 2) / (max_possible * .5)
 				accepted = true
 			end
@@ -287,6 +223,11 @@ trj_2 = let
 	trj
 end
 
+# ╔═╡ 5926e7e5-1e4b-408e-a02a-6941bfb95845
+md"""
+We next compute the distance between each point of each random trajectory and the corresponding point of the nominal trajectory.
+"""
+
 # ╔═╡ 95f31b7c-051f-4b15-8edd-0628faf94b5d
 dist_2 = let	
 	dist = Array{Float64}(undef, n_samples_2, H_2+1)
@@ -295,6 +236,11 @@ dist_2 = let
 	end
 	dist
 end
+
+# ╔═╡ 79f22b98-8bf7-465b-b900-81b22a4b0ca8
+md"""
+Using this distance, we compute the deviation between each random trajectory and the nominal one.
+"""
 
 # ╔═╡ f2ddd147-d1c7-4453-8997-76752c5bc515
 dev_2 = maximum(dist_2, dims=2)
@@ -363,7 +309,7 @@ This section illustrates the Bounded Runs algorithm, used to explore all possibl
 |------------------------:|:----------------------------------------------------------------------------|
 |                Strategy | $(@bind sim_strategy_bounded_runs Select(strat_names))                      |
 |                     $n$ | $(@bind n_bounded_runs Slider(1:16, default=8,  show_value=true)) |
-|              Max misses | $(@bind maxmiss_bounded_runs Slider(-1:16, default=5, show_value=true)) |
+|              Max misses | $(@bind maxmiss_bounded_runs Slider(0:16, default=5, show_value=true)) |
 | Show nominal trajectory | $(@bind show_nom_traj_bounded_runs CheckBox(default=false))                                |
 """
 
@@ -373,7 +319,7 @@ bounds = [2; 2;; 2.5; 2.5]
 # ╔═╡ ef358d22-a530-4881-a282-b850d3655427
 begin
 	points_bounded_runs = let
-		automaton = strat_map[sim_strategy_bounded_runs](sysd, K, maxmiss_bounded_runs)
+		automaton = strat_map[sim_strategy_bounded_runs](sysd, K, MissRow(maxmiss_bounded_runs))
 		augbounds = augment(automaton, bounds)
 		bounded_runs(automaton, augbounds, n_bounded_runs)
 	end
@@ -417,7 +363,7 @@ This section illustrates the Bounded Runs Iteration algorithm, used to efficient
 |--------------------:|:-------------------------------------------------------------|
 |            Strategy | $(@bind sim_strategy_4 Select(strat_names))                  |
 |                 $n$ | $(@bind n_4 Slider(1:24, default=5, show_value=true))        |
-|          Max misses | $(@bind max_miss_4 Slider(-1:16, default=4, show_value=true))|
+|          Max misses | $(@bind max_miss_4 Slider(0:16, default=4, show_value=true))|
 |                 $t$ | $(@bind time_4 Slider(5:5:1000, default=100, show_value=true)) |
 | Sample trajectories | $(@bind sample_traj_4 CheckBox(default=false))               |
 """
@@ -426,7 +372,7 @@ This section illustrates the Bounded Runs Iteration algorithm, used to efficient
 begin
 	t_4 = div(time_4, n_4)
 	all_bounds = let
-		automaton = strat_map[sim_strategy_4](sysd, K, max_miss_4)
+		automaton = strat_map[sim_strategy_4](sysd, K, MissRow(max_miss_4))
 		augbounds = augment(automaton, bounds)
 		bounded_runs_iter(automaton, augbounds, n_4, t_4)
 	end
@@ -466,7 +412,7 @@ Using these computed reachable sets, we finally compute the maximum deviation th
 
 # ╔═╡ 7afec811-9ccc-4e93-9cc8-a3c6b6ee5c49
 let
-	automaton = strat_map[sim_strategy_4](sysd, K, max_miss_4)
+	automaton = strat_map[sim_strategy_4](sysd, K, MissRow(max_miss_4))
 	d = deviation(automaton, augment(automaton, bounds), all_bounds, dims=1:2)[1:time_4+1]
 	i = argmax(d)
 	v = maximum(d)
@@ -523,15 +469,11 @@ md"""
 # ╟─ba54ee0e-4919-4c35-a48b-4b53511eb4be
 # ╟─c822e252-552b-48bd-8269-266d3d30f7ea
 # ╟─a057b28a-de4f-4b8f-87c1-4d32e3f38242
-# ╟─a6b57e9d-0d61-41f1-96ff-4502daa0ba4a
+# ╠═a6b57e9d-0d61-41f1-96ff-4502daa0ba4a
 # ╟─5926e7e5-1e4b-408e-a02a-6941bfb95845
 # ╟─95f31b7c-051f-4b15-8edd-0628faf94b5d
 # ╟─79f22b98-8bf7-465b-b900-81b22a4b0ca8
 # ╟─f2ddd147-d1c7-4453-8997-76752c5bc515
-# ╟─d9ed868d-ee5b-4470-8edc-3b6adb429500
-# ╠═ea5c98dc-0496-43ec-a8f1-2566e0590c93
-# ╟─0bb32ddb-77c6-4196-90cd-9ecd27b9bf17
-# ╠═275a5d3f-2936-408d-9705-a807df9f0b79
 # ╟─c9856b8f-4341-4e33-9a73-3b1570fb24fa
 # ╟─fbf988b0-7574-4dbb-929f-3d7df117d9dc
 # ╟─0843dd0e-0091-402f-9f28-fb112232f140
