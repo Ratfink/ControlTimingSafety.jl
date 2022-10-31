@@ -13,4 +13,6 @@ export corners_from_bounds, merge_bounds
 export bounded_runs, bounded_runs_iter, deviation
 include("safety.jl")
 
+include("probablesafety.jl")
+
 end

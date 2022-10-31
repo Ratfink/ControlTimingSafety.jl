@@ -153,20 +153,28 @@ the given [`Automaton`](@ref) `a`, starting from the set of initial states `boun
 the `reachable` sets.  The deviation is computed using the specified `metric` from the
 [Distances.jl](https://www.juliapackages.com/p/distances) package.  If `dims` is specified,
 the deviation is computed for these dimensions only; otherwise, all dimensions are used.
+`reachable` may be the three-dimensional output of e.g. [`bounded_runs_iter`](@ref), or a
+matrix with dimensions (state, time), e.g. from [`evol`](@ref).
 
 See also [`bounded_runs`](@ref) and [`bounded_runs_iter`](@ref), which can be used to
 compute `reachable`.
 """
-function deviation(a::Automaton, bounds::AbstractVecOrMat, reachable; dims=axes(bounds,1),
-                   metric::PreMetric=Euclidean(), nominal=ones(Int64,size(reachable,1)-1))
+function deviation(a::Automaton, bounds::AbstractVecOrMat{Float64},
+                   reachable::Union{AbstractArray{Float64,2}, AbstractArray{Float64,3}};
+                   dims=axes(bounds,1), metric::PreMetric=Euclidean(),
+                   nominal=ones(Int64,size(reachable,1)-1))
     @boundscheck length(nominal) == size(reachable, 1) - 1 || throw(DimensionMismatch("nominal must have length size(reachable, 1) - 1"))
     @boundscheck dims ⊆ axes(bounds, 1) || throw(ArgumentError("All entries of dims must be valid indices to the first dimension of bounds"))
 
     # Dimensions: state variables, points, time
-    reachable_corners = cat([corners_from_bounds(reachable[t,:,:], dims=dims) for t in axes(reachable, 1)]..., dims=3)
+    if reachable isa AbstractArray{Float64, 3}
+        reachable_corners = cat([corners_from_bounds(reachable[t,:,:], dims=dims) for t in axes(reachable, 1)]..., dims=3)
+    else
+        reachable_corners = reshape(reachable, size(reachable, 1), 1, size(reachable, 2))
+    end
 
     # Dimensions: state variables, points, time
-    if isa(bounds, AbstractVector)
+    if bounds isa AbstractVector{Float64}
         # XXX Not the most memory-efficient solution, but keeps us from having
         # to maintain two nearly-identical methods of the function.
         bounds = [bounds bounds]
