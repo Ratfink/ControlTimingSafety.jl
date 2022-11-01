@@ -6,10 +6,10 @@
 Tools for verifying safety of control systems that may experience timing
 uncertainty.
 
-This package, for the time being, consists primarily of an implementation of
-the Bounded Runs Iteration algorithm from the paper "Safety Analysis of
-Embedded Controllers under Implementation Platform Timing Uncertainties."  See
-the [Citing](#citing) section below for more information.
+This package provides tools for calculating safe overapproximations and
+probabilistic estimations of the maximum deviation a control system may suffer
+due to deadline misses.  If you find these tools useful in your research,
+please consider [citing](#citing) the papers that the algorithms originated in.
 
 ## Installation
 
@@ -54,11 +54,25 @@ notebook, `notebooks/control_timing_safety.jl`.
 ## Citing
 
 If you use this code in your research, we ask that you consider citing the
-relevant paper.  Currently, this means the following:
+relevant papers.  For the `bounded_runs_iter` function for overapproximating
+the maximum deviation, please cite:
 
-> Clara Hobbs, Bineet Ghosh, Shengjie Xu, Parasara Sridhar Duggirala, and Samarjit Chakraborty.
-> "Safety Analysis of Embedded Controllers under Implementation Platform Timing Uncertainties."
+> Clara Hobbs, Bineet Ghosh, Shengjie Xu, Parasara Sridhar Duggirala, and
+> Samarjit Chakraborty.
+> "Safety Analysis of Embedded Controllers under Implementation Platform Timing
+> Uncertainties."
 > TCAD 2022.
+> DOI: [10.1109/TCAD.2022.3198905](https://doi.org/10.1109/TCAD.2022.3198905)
+
+For the `estimate_deviation` function, based on Jeffreys' Bayes factor
+hypothesis testing, please cite:
+
+> Bineet Ghosh, Clara Hobbs, Shengjie Xu, Parasara Sridhar Duggirala, James H.
+> Anderson, P. S. Thiagarajan, and Samarjit Chakraborty.
+> "Statistical Hypothesis Testing of Controller Implementations Under Timing
+> Uncertainties."
+> RTCSA 2022.
+> DOI: [10.1109/RTCSA55878.2022.00008](https://doi.org/10.1109/RTCSA55878.2022.00008)
 
 As we continue this line of work, we intend to incorporate new algorithms in
 this package, and the list of papers will be updated accordingly (along with
