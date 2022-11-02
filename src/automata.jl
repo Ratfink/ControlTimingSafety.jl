@@ -317,7 +317,8 @@ end
 Same as [`evol_final`](@ref), but writes to the input matrix `z`, whose first row is `z_0`.
 """
 function evol_final!(a::Automaton, z::AbstractMatrix{Float64}, input::AbstractVector{Int64})
-    @boundscheck size(z) == (length(input)+1, a.nz) || throw(DimensionMismatch("z must have size (length(input)+1, a.nz)"))
+    @boundscheck size(z,1) == length(input)+1 || throw(DimensionMismatch("z must have size (length(input)+1, a.nz)"))
+    @boundscheck size(z,2) == a.nz || throw(DimensionMismatch("z must have size (length(input)+1, a.nz)"))
     l = a.l_int
     # For each time step and input action
     for (t, in) in enumerate(input)
@@ -329,7 +330,7 @@ function evol_final!(a::Automaton, z::AbstractMatrix{Float64}, input::AbstractVe
             return z[1:t,:], missing
         end
         # Apply the dynamics
-        z[t+1,:] = a.Φ[μ] * z[t,:]
+        mul!(view(z,t+1,:), a.Φ[μ], view(z,t,:))
         # Transition to the new location
         l = a.T[l, in]
     end

@@ -18,15 +18,21 @@ Base.@propagate_inbounds function maximum_deviation_random(a::Automaton,
     if nominal_trajectory === nothing
         nominal_trajectory = evol(a, z_0, nominal)
     end
+    Cnom = a.C * nominal_trajectory'
     maxdev = 0.0
     s = falses(sampler.H)
+    beh = zeros(Int64, sampler.H)
     z = zeros(sampler.H + 1, a.nz)
+    Cz = zeros(size(a.C, 1), sampler.H + 1)
+    dist = zeros(Float64, length(nominal)+1)
     z[1,:] = z_0
     for _ in 1:samples
         rand!(s, sampler)
-        evol!(a, z, 2 .- s)
-        dist = deviation(a, z_0, z, nominal_trajectory=nominal_trajectory, metric=metric)
-        maxdev = maximum([dist; maxdev])
+        beh .= 2 .- s
+        evol!(a, z, beh)
+        mul!(Cz, a.C, z')
+        colwise!(dist, metric, Cz, Cnom)
+        maxdev = max(maximum(dist), maxdev)
         if estimate !== nothing && maxdev > estimate
             return maxdev
         end

@@ -156,9 +156,6 @@ system (i.e. after multiplying by `a.C`).  `reachable` may be the three-dimensio
 of e.g. [`bounded_runs_iter`](@ref), or a matrix with dimensions (state, time), e.g. from
 [`evol`](@ref).
 
-If `reachable` is two-dimensional, compute the deviation between two individual runs with
-single initial states.
-
 If `nominal_trajectory` is given, this trajectory is used instead of computing the
 trajectory from the `nominal` behavior.  This can improve efficiency when calling
 `deviation` iteratively.
@@ -197,23 +194,7 @@ Base.@propagate_inbounds function deviation(a::Automaton, z_0::AbstractVecOrMat{
         dist = pairwise(metric, reachable_corners[:,:,t], nominal_trajectory[:,:,t])
         H_row = maximum(minimum(dist, dims=1))
         H_col = maximum(minimum(dist, dims=2))
-        H[t] = maximum((H_row, H_col))
+        H[t] = max(H_row, H_col)
     end
     H
-end
-
-Base.@propagate_inbounds function deviation(a::Automaton, z_0::AbstractVector{Float64},
-                   reachable::AbstractMatrix{Float64};
-                   metric::PreMetric=Euclidean(),
-                   nominal::AbstractVector{Int64}=ones(Int64,size(reachable,1)-1),
-                   nominal_trajectory::Union{AbstractMatrix{Float64}, Nothing}=nothing)
-    @boundscheck length(nominal) == size(reachable, 1) - 1 || throw(DimensionMismatch("nominal must have length size(reachable, 1) - 1"))
-    @boundscheck nominal_trajectory === nothing || size(nominal_trajectory) == (size(reachable,1), size(z_0,1)) || throw(DimensionMismatch("nominal_trajectory must have size (size(reachable,1), size(z_0,1))"))
-
-    if nominal_trajectory === nothing
-        nominal_trajectory = evol(a, z_0, nominal)
-    end
-
-    # Compute Hausdorff distance at each time step
-    colwise(metric, a.C * reachable', a.C * nominal_trajectory')
 end
