@@ -146,15 +146,15 @@ function bounded_runs_iter(a::Automaton, z_0::AbstractVecOrMat, n::Integer, t::I
 end
 
 """
-    deviation(a, z_0, reachable; dims=[all], metric=Euclidean(), nominal=[1,1,...])
+    deviation(a, z_0, reachable; metric=Euclidean(), nominal=[1,1,...])
 
 Compute the deviation from the `nominal` behavior (default: all `1`) that is possible for
 the given [`Automaton`](@ref) `a`, starting from the set of initial states `z_0`, within
 the `reachable` sets.  The deviation is computed using the specified `metric` from the
-[Distances.jl](https://www.juliapackages.com/p/distances) package.  If `dims` is specified,
-the deviation is computed for these dimensions only; otherwise, all dimensions are used.
-`reachable` may be the three-dimensional output of e.g. [`bounded_runs_iter`](@ref), or a
-matrix with dimensions (state, time), e.g. from [`evol`](@ref).
+[Distances.jl](https://www.juliapackages.com/p/distances) package, on the output of the
+system (i.e. after multiplying by `a.C`).  `reachable` may be the three-dimensional output
+of e.g. [`bounded_runs_iter`](@ref), or a matrix with dimensions (state, time), e.g. from
+[`evol`](@ref).
 
 If `reachable` is two-dimensional, compute the deviation between two individual runs with
 single initial states.
@@ -168,14 +168,13 @@ compute `reachable`.
 """
 Base.@propagate_inbounds function deviation(a::Automaton, z_0::AbstractVecOrMat{Float64},
                    reachable::AbstractArray{Float64,3};
-                   dims=axes(z_0,1), metric::PreMetric=Euclidean(),
+                   metric::PreMetric=Euclidean(),
                    nominal::AbstractVector{Int64}=ones(Int64,size(reachable,1)-1),
                    nominal_trajectory::Union{AbstractArray{Float64,3}, Nothing}=nothing)
     @boundscheck length(nominal) == size(reachable, 1) - 1 || throw(DimensionMismatch("nominal must have length size(reachable, 1) - 1"))
-    @boundscheck dims ⊆ axes(z_0, 1) || throw(ArgumentError("All entries of dims must be valid indices to the first dimension of z_0"))
 
     # Dimensions: state variables, points, time
-    reachable_corners = cat([corners_from_bounds(reachable[t,:,:], dims=dims) for t in axes(reachable, 1)]..., dims=3)
+    reachable_corners = cat([corners_from_bounds(a.C * reachable[t,:,:]) for t in axes(reachable, 1)]..., dims=3)
 
     # Dimensions: state variables, points, time
     if z_0 isa AbstractVector{Float64}
@@ -184,11 +183,11 @@ Base.@propagate_inbounds function deviation(a::Automaton, z_0::AbstractVecOrMat{
         z_0 = [z_0 z_0]
     end
     if nominal_trajectory === nothing
-        nominal_trajectory = Array{Float64}(undef, length(dims), 2^size(z_0,1), size(reachable, 1))
-        corners = corners_from_bounds(z_0, dims=axes(z_0,1))
+        nominal_trajectory = Array{Float64}(undef, size(a.C, 1), 2^size(z_0,1), size(reachable, 1))
+        corners = corners_from_bounds(z_0)
         for (i, c) in enumerate(eachcol(corners))
             e = evol(a, c, nominal)
-            nominal_trajectory[:,i,:] = e'[dims,:]
+            nominal_trajectory[:,i,:] = a.C * e'
         end
     end
 
@@ -205,11 +204,10 @@ end
 
 Base.@propagate_inbounds function deviation(a::Automaton, z_0::AbstractVector{Float64},
                    reachable::AbstractMatrix{Float64};
-                   dims=axes(z_0,1), metric::PreMetric=Euclidean(),
+                   metric::PreMetric=Euclidean(),
                    nominal::AbstractVector{Int64}=ones(Int64,size(reachable,1)-1),
                    nominal_trajectory::Union{AbstractMatrix{Float64}, Nothing}=nothing)
     @boundscheck length(nominal) == size(reachable, 1) - 1 || throw(DimensionMismatch("nominal must have length size(reachable, 1) - 1"))
-    @boundscheck dims ⊆ axes(z_0, 1) || throw(ArgumentError("All entries of dims must be valid indices to the first dimension of z_0"))
     @boundscheck nominal_trajectory === nothing || size(nominal_trajectory) == (size(reachable,1), size(z_0,1)) || throw(DimensionMismatch("nominal_trajectory must have size (size(reachable,1), size(z_0,1))"))
 
     if nominal_trajectory === nothing
@@ -217,5 +215,5 @@ Base.@propagate_inbounds function deviation(a::Automaton, z_0::AbstractVector{Fl
     end
 
     # Compute Hausdorff distance at each time step
-    colwise(metric, reachable'[dims,:], nominal_trajectory'[dims,:])
+    colwise(metric, a.C * reachable', a.C * nominal_trajectory')
 end

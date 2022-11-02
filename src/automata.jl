@@ -28,8 +28,12 @@ struct Automaton
     `l_int`: initial location in `1:L`.
     """
     l_int::Int64
+    """
+    `C`: Output matrix, i.e. `y[t] = C * z[t]`.
+    """
+    C::Matrix{Float64}
 
-    function Automaton(Φ, T, μ, l_int)
+    function Automaton(Φ, T, μ, l_int, C)
         nz = size(Φ[1], 1)
 
         @boundscheck all(t -> t == (nz, nz), size.(Φ)) || throw(DimensionMismatch("All matrices in Φ must be square and equal size"))
@@ -37,8 +41,9 @@ struct Automaton
         @boundscheck l_int ∈ axes(T, 1) || throw(ArgumentError("l_int must be a valid index to the first dimension of T"))
         @boundscheck all(t -> ismissing(t) || t ∈ axes(T, 1), T) || throw(ArgumentError("All entries of T must be valid indices to the first dimension of T or missing"))
         @boundscheck all(t -> ismissing(t) || t ∈ axes(Φ, 1), μ) || throw(ArgumentError("All entries of μ must be valid indices to Φ or missing"))
+        @boundscheck size(C, 2) == nz || throw(DimensionMismatch("Rows of C must equal columns of all matrices in Φ"))
 
-        new(Φ, T, μ, l_int)
+        new(Φ, T, μ, l_int, C)
     end
 end
 
@@ -69,7 +74,7 @@ Construct a copy of the [`Automaton`](@ref) `a` with a new `l_int`.
 function Automaton(a::Automaton, l_int::Int64)
     @boundscheck l_int ∈ a.L || throw(ArgumentError("l_int must be a valid location in a.L"))
 
-    @inbounds Automaton(a.Φ, a.T, a.μ, l_int)
+    @inbounds Automaton(a.Φ, a.T, a.μ, l_int, a.C)
 end
 
 """
@@ -115,7 +120,7 @@ function _hold_skip_next(sysd, K, T, μ)
                [sysd.A  zeros(p, p)  sysd.B;
                 zeros(p, p)  I(p)  zeros(p, r);
                 zeros(r, 2p)  I(r)]],
-              T, μ, 1)
+              T, μ, 1, [sysd.C zeros(size(sysd.C, 1), p + r)])
 end
 
 function _skip_next()
@@ -182,7 +187,7 @@ function _zero_skip_next(sysd, K, T, μ)
                [sysd.A  zeros(p, p)  sysd.B;
                 zeros(p, p)  I(p)  zeros(p, r);
                 zeros(r, 2p + r)]],
-              T, μ, 1)
+              T, μ, 1, [sysd.C zeros(size(sysd.C, 1), p + r)])
 end
 
 """
@@ -218,7 +223,7 @@ function _hold_kill(sysd, K, T, μ)
                # Φ_M
                [sysd.A  sysd.B;
                 zeros(r, p)  I(r)]],
-              T, μ, 1)
+              T, μ, 1, [sysd.C zeros(size(sysd.C, 1), r)])
 end
 
 function _kill()
@@ -273,7 +278,7 @@ function _zero_kill(sysd, K, T, μ)
                # Φ_M
                [sysd.A  sysd.B;
                 zeros(r, p + r)]],
-              T, μ, 1)
+              T, μ, 1, [sysd.C zeros(size(sysd.C, 1), r)])
 end
 
 """
