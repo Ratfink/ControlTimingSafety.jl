@@ -15,24 +15,34 @@ Base.@propagate_inbounds function maximum_deviation_random(a::Automaton,
         nominal_trajectory::Union{AbstractArray{Float64}, Nothing}=nothing)
     @boundscheck length(nominal) == sampler.H || throw(DimensionMismatch("nominal must have length sampler.H"))
     @boundscheck nominal_trajectory === nothing || size(nominal_trajectory) == (size(z_0,1), sampler.H+1) || throw(DimensionMismatch("nominal_trajectory must have size (size(z_0,1), sampler.H+1)"))
+    # Compute the nominal trajectory if not provided
     if nominal_trajectory === nothing
         nominal_trajectory = evol(a, z_0, nominal)
     end
     Cnom = a.C * nominal_trajectory'
-    maxdev = 0.0
+
+    # Pre-allocate memory for things
     s = falses(sampler.H)
     beh = zeros(Int64, sampler.H)
     z = zeros(sampler.H + 1, a.nz)
+    z[1,:] = z_0
     Cz = zeros(size(a.C, 1), sampler.H + 1)
     dist = zeros(Float64, length(nominal)+1)
-    z[1,:] = z_0
+
+    maxdev = 0.0
     for _ in 1:samples
+        # Generate a random behavior
         rand!(s, sampler)
         beh .= 2 .- s
+        # Compute its evolution
         evol!(a, z, beh)
+        # Compute the output
         mul!(Cz, a.C, z')
+        # Compute the distance between the output and nominal trajectory
         colwise!(dist, metric, Cz, Cnom)
+        # If it's the biggest we've seen, store it
         maxdev = max(maximum(dist), maxdev)
+        # Bail out early if we exceeded the estimate
         if estimate !== nothing && maxdev > estimate
             return maxdev
         end
@@ -59,8 +69,12 @@ Base.@propagate_inbounds function estimate_deviation(a::Automaton,
         nominal_trajectory::Union{AbstractArray{Float64}, Nothing}=nothing)
     @boundscheck length(nominal) == sampler.H || throw(DimensionMismatch("nominal must have length sampler.H"))
     @boundscheck nominal_trajectory === nothing || size(nominal_trajectory) == (size(z_0,1), sampler.H+1) || throw(DimensionMismatch("nominal_trajectory must have size (size(z_0,1), sampler.H+1)"))
+
+    # Compute the number of samples to draw for the required confidence and Bayes factor
     K = ceil(Int64, -log(c, B+1))
+    # Take our initial estimate from a small random sample
     estimate = maximum_deviation_random(a, sampler, 20, z_0)
+    # Test the hypothesis, formulating new ones if we fail to accept it
     while true
         max_seen = maximum_deviation_random(a, sampler, K, z_0, metric=metric,
                                             estimate=estimate, nominal=nominal,
