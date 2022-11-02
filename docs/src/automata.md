@@ -57,4 +57,6 @@ evolution.
 ```@docs
 evol
 evol_final
+evol!
+evol_final!
 ```
