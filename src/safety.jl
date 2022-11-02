@@ -66,7 +66,8 @@ function bounded_runs(a::Automaton, z_0::AbstractVecOrMat, n::Integer)
     corners = corners_from_bounds(z_0)
 
     # Stack
-    z = Array{Float64}(undef, n+1, size(corners)...)
+    # z gets one extra entry in the third dimension for cheap concatenation in leaf nodes
+    z = Array{Float64}(undef, n+1, size(corners,1), size(corners,2)+1)
     loc = Vector{Int64}(undef, n+1)
     act = Vector{Int64}(undef, n+1)
 
@@ -74,7 +75,7 @@ function bounded_runs(a::Automaton, z_0::AbstractVecOrMat, n::Integer)
     ret = Array{Float64}(undef, nlocations(a), n+1, a.nz, 2) * NaN
 
     # Create the stack frame for time 0
-    z[1,:,:] = corners
+    z[1,:,begin:end-1] = corners
     loc[1] = a.l_int
     act[1] = 1
     # Initialize the stack pointer
@@ -84,23 +85,25 @@ function bounded_runs(a::Automaton, z_0::AbstractVecOrMat, n::Integer)
         # If we've reached a leaf
         if sp == n+1
             # Calculate min and max for this final location at each time step
-            ret[loc[sp],:,:,1] = minimum(_safefloatmin, cat(z, ret[loc[sp],:,:,1], dims=3), dims=3)
-            ret[loc[sp],:,:,2] = maximum(_safefloatmax, cat(z, ret[loc[sp],:,:,2], dims=3), dims=3)
+            z[:,:,end] = view(ret,loc[sp],:,:,1)
+            minimum!(_safefloatmin, view(ret,loc[sp],:,:,1:1), z)
+            z[:,:,end] = view(ret,loc[sp],:,:,2)
+            maximum!(_safefloatmax, view(ret,loc[sp],:,:,2:2), z)
             sp -= 1
-            # If we're out of actions from this step
+        # If we're out of actions from this step
         elseif act[sp] > nactions(a)
             sp -= 1
-            # If the transition is missing
+        # If the transition is missing
         elseif ismissing(a.T[loc[sp], act[sp]])
             # Try the next transition
-            act[sp] = act[sp] + 1
-            # If the transition is present
+            act[sp] += 1
+        # If the transition is present
         else
-            z[sp+1,:,:] = a.Φ[a.μ[loc[sp], act[sp]]] * z[sp,:,:]
+            z[sp+1,:,begin:end-1] = a.Φ[a.μ[loc[sp], act[sp]]] * z[sp,:,begin:end-1]
             loc[sp+1] = a.T[loc[sp], act[sp]]
             act[sp+1] = 1
-            act[sp] = act[sp] + 1
-            sp = sp + 1
+            act[sp] += 1
+            sp += 1
         end
     end
     ret
