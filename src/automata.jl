@@ -301,8 +301,18 @@ and `l` is the final location in the automaton.
 """
 function evol_final(a::Automaton, z_0::AbstractVector{Float64}, input::AbstractVector{Int64})
     @boundscheck length(z_0) == a.nz || throw(DimensionMismatch("z_0 must have length a.nz"))
-    z = zeros(a.nz, length(input) + 1)
-    z[:,1] = z_0
+    z = zeros(length(input) + 1, a.nz)
+    z[1,:] = z_0
+    evol_final!(a, z, input)
+end
+
+"""
+    evol_final!(a, z, input)
+
+Same as [`evol_final`](@ref), but writes to the input matrix `z`, whose first row is `z_0`.
+"""
+function evol_final!(a::Automaton, z::AbstractMatrix{Float64}, input::AbstractVector{Int64})
+    @boundscheck size(z) == (length(input)+1, a.nz) || throw(DimensionMismatch("z must have size (length(input)+1, a.nz)"))
     l = a.l_int
     # For each time step and input action
     for (t, in) in enumerate(input)
@@ -311,14 +321,14 @@ function evol_final(a::Automaton, z_0::AbstractVector{Float64}, input::AbstractV
         # If we hit a missing transition, return the states that we reached,
         # and a missing final location to signal the problem to the caller.
         if ismissing(μ)
-            return z[:,1:t]', missing
+            return z[1:t,:], missing
         end
         # Apply the dynamics
-        z[:,t+1] = a.Φ[μ] * z[:,t]
+        z[t+1,:] = a.Φ[μ] * z[t,:]
         # Transition to the new location
         l = a.T[l, in]
     end
-    z', l
+    z, l
 end
 
 """
@@ -333,6 +343,13 @@ See also [`evol_final`](@ref), which additionally returns the final location in 
 automaton.
 """
 evol(a::Automaton, z_0::AbstractVector{Float64}, input::AbstractVector{Int64}) = evol_final(a, z_0, input)[1]
+
+"""
+    evol!(a, z, input)
+
+Same as [`evol`](@ref), but writes to the input matrix `z`, whose first row is `z_0`.
+"""
+evol!(a::Automaton, z::AbstractMatrix{Float64}, input::AbstractVector{Int64}) = evol_final!(a, z, input)[1]
 
 """
     augment(a::Automaton, x)

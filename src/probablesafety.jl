@@ -17,14 +17,17 @@ Base.@propagate_inbounds function maximum_deviation_random(a::Automaton,
     @boundscheck length(nominal) == sampler.H || throw(DimensionMismatch("nominal must have length sampler.H"))
     @boundscheck dims ⊆ axes(z_0, 1) || throw(ArgumentError("All entries of dims must be valid indices to the first dimension of z_0"))
     @boundscheck nominal_trajectory === nothing || size(nominal_trajectory) == (size(z_0,1), sampler.H+1) || throw(DimensionMismatch("nominal_trajectory must have size (size(z_0,1), sampler.H+1)"))
-    schedules = rand(sampler, samples)
     if nominal_trajectory === nothing
         nominal_trajectory = evol(a, z_0, nominal)
     end
     maxdev = 0.0
-    for s in schedules
-        ev = evol(a, z_0, 2 .- s)
-        dist = deviation(a, z_0, ev, nominal_trajectory=nominal_trajectory, dims=dims)
+    s = falses(sampler.H)
+    z = zeros(sampler.H + 1, a.nz)
+    z[1,:] = z_0
+    for _ in 1:samples
+        rand!(s, sampler)
+        evol!(a, z, 2 .- s)
+        dist = deviation(a, z_0, z, nominal_trajectory=nominal_trajectory, dims=dims)
         maxdev = maximum([dist; maxdev])
         if estimate !== nothing && maxdev > estimate
             return maxdev
