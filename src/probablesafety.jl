@@ -1,16 +1,16 @@
 """
-    maximum_deviation_random(a, sampler, z_0, samples; estimate, nominal,
+    maximum_deviation_random(a, sampler, z_0, samples; estimate, metric, nominal,
                              nominal_trajectory)
 
 Calculate `samples` random behaviors using `sampler`, and the corresponding trajectories of
 the [`Automaton`](@ref) `a` from the initial state `z_0`.  Return the maximum deviation
-from a nominal trajectory.  The parameters `nominal` and `nominal_trajectory` are
+from a nominal trajectory.  The parameters `metric`, `nominal`, and `nominal_trajectory` are
 as in [`deviation`](@ref).  If `estimate` is specified, stop early if this deviation
 estimate is exceeded, returning the exceeding deviation.
 """
 Base.@propagate_inbounds function maximum_deviation_random(a::Automaton,
         sampler::RealTimeScheduling.SamplerUniformMissRow, samples::Int64, z_0;
-        estimate::Union{Float64, Nothing}=nothing,
+        estimate::Union{Float64, Nothing}=nothing, metric::PreMetric=Euclidean(),
         nominal::AbstractVector{Int64}=ones(Int64,sampler.H),
         nominal_trajectory::Union{AbstractArray{Float64}, Nothing}=nothing)
     @boundscheck length(nominal) == sampler.H || throw(DimensionMismatch("nominal must have length sampler.H"))
@@ -25,7 +25,7 @@ Base.@propagate_inbounds function maximum_deviation_random(a::Automaton,
     for _ in 1:samples
         rand!(s, sampler)
         evol!(a, z, 2 .- s)
-        dist = deviation(a, z_0, z, nominal_trajectory=nominal_trajectory)
+        dist = deviation(a, z_0, z, nominal_trajectory=nominal_trajectory, metric=metric)
         maxdev = maximum([dist; maxdev])
         if estimate !== nothing && maxdev > estimate
             return maxdev
@@ -40,7 +40,7 @@ end
 Estimate the deviation possible in the [`Automaton`](@ref) `a`, using `sampler` to generate
 random behaviors.  The initial state is given as `z_0`.  `c` specifies the confidence with
 which the returned value is asserted to be an upper bound, and `B` is the Bayes factor used
-in hypothesis testing.  The parameters `nominal` and `nominal_trajectory` are as
+in hypothesis testing.  The parameters `metric`, `nominal`, and `nominal_trajectory` are as
 in [`deviation`](@ref).
 
 For more information, see Bineet Ghosh et al., "Statistical Hypothesis Testing of Controller
@@ -49,14 +49,14 @@ DOI: [10.1109/RTCSA55878.2022.00008](https://doi.org/10.1109/RTCSA55878.2022.000
 """
 Base.@propagate_inbounds function estimate_deviation(a::Automaton,
         sampler::RealTimeScheduling.SamplerUniformMissRow, z_0, c::Float64, B::Float64;
-        nominal::AbstractVector{Int64}=ones(Int64,sampler.H),
+        metric::PreMetric=Euclidean(), nominal::AbstractVector{Int64}=ones(Int64,sampler.H),
         nominal_trajectory::Union{AbstractArray{Float64}, Nothing}=nothing)
     @boundscheck length(nominal) == sampler.H || throw(DimensionMismatch("nominal must have length sampler.H"))
     @boundscheck nominal_trajectory === nothing || size(nominal_trajectory) == (size(z_0,1), sampler.H+1) || throw(DimensionMismatch("nominal_trajectory must have size (size(z_0,1), sampler.H+1)"))
     K = ceil(Int64, -log(c, B+1))
     estimate = maximum_deviation_random(a, sampler, 20, z_0)
     while true
-        max_seen = maximum_deviation_random(a, sampler, K, z_0,
+        max_seen = maximum_deviation_random(a, sampler, K, z_0, metric=metric,
                                             estimate=estimate, nominal=nominal,
                                             nominal_trajectory=nominal_trajectory)
         if max_seen <= estimate
