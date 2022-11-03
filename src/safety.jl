@@ -67,15 +67,15 @@ function bounded_runs(a::Automaton, z_0::AbstractVecOrMat, n::Integer)
 
     # Stack
     # z gets one extra entry in the third dimension for cheap concatenation in leaf nodes
-    z = Array{Float64}(undef, n+1, size(corners,1), size(corners,2)+1)
+    z = Array{Float64}(undef, size(corners,1), size(corners,2)+1, n+1)
     loc = Vector{Int64}(undef, n+1)
     act = Vector{Int64}(undef, n+1)
 
-    # Bounding boxes for each final location, time step
-    ret = Array{Float64}(undef, nlocations(a), n+1, a.nz, 2) * NaN
+    # Bounding boxes for each time step, final location
+    ret = Array{Float64}(undef, a.nz, 2, n+1, nlocations(a)) * NaN
 
     # Create the stack frame for time 0
-    z[1,:,begin:end-1] = corners
+    z[:,begin:end-1,1] = corners
     loc[1] = a.l_int
     act[1] = 1
     # Initialize the stack pointer
@@ -85,10 +85,10 @@ function bounded_runs(a::Automaton, z_0::AbstractVecOrMat, n::Integer)
         # If we've reached a leaf
         if sp == n+1
             # Calculate min and max for this final location at each time step
-            z[:,:,end] = view(ret,loc[sp],:,:,1)
-            minimum!(_safefloatmin, view(ret,loc[sp],:,:,1:1), z)
-            z[:,:,end] = view(ret,loc[sp],:,:,2)
-            maximum!(_safefloatmax, view(ret,loc[sp],:,:,2:2), z)
+            z[:,end,:] = view(ret,:,1,:,loc[sp])
+            minimum!(_safefloatmin, view(ret,:,1:1,:,loc[sp]), z)
+            z[:,end,:] = view(ret,:,2,:,loc[sp])
+            maximum!(_safefloatmax, view(ret,:,2:2,:,loc[sp]), z)
             sp -= 1
         # If we're out of actions from this step
         elseif act[sp] > nactions(a)
@@ -99,14 +99,16 @@ function bounded_runs(a::Automaton, z_0::AbstractVecOrMat, n::Integer)
             act[sp] += 1
         # If the transition is present
         else
-            z[sp+1,:,begin:end-1] = a.Φ[a.μ[loc[sp], act[sp]]] * z[sp,:,begin:end-1]
+            mul!(view(z,:,1:size(corners,2),sp+1), a.Φ[a.μ[loc[sp], act[sp]]], view(z,:,1:size(corners,2),sp))
             loc[sp+1] = a.T[loc[sp], act[sp]]
             act[sp+1] = 1
             act[sp] += 1
             sp += 1
         end
     end
-    ret
+    # TODO: the order of dimensions is largely an implementation detail, and since it was
+    # non-optimal before, we should ultimately remove the need for this permutedims call
+    permutedims(ret, [4, 3, 1, 2])
 end
 
 """
