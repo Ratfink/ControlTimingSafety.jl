@@ -90,7 +90,7 @@ function hold_skip_next(sysd::AbstractStateSpace{<:Discrete},
 end
 
 function hold_skip_next(sysd::AbstractStateSpace{<:Discrete},
-        K::AbstractMatrix{Float64}, c::RealTimeScheduling.MissRow)
+        K::AbstractMatrix{Float64}, c::RealTimeScheduling.WeaklyHardConstraint)
     _hold_skip_next(sysd, K, _skip_next(c)...)
 end
 
@@ -162,7 +162,7 @@ function zero_skip_next(sysd::AbstractStateSpace{<:Discrete},
 end
 
 function zero_skip_next(sysd::AbstractStateSpace{<:Discrete},
-        K::AbstractMatrix{Float64}, c::RealTimeScheduling.MissRow)
+        K::AbstractMatrix{Float64}, c::RealTimeScheduling.WeaklyHardConstraint)
     _zero_skip_next(sysd, K, _skip_next(c)...)
 end
 
@@ -212,7 +212,7 @@ function hold_kill(sysd::AbstractStateSpace{<:Discrete}, K::AbstractMatrix{Float
 end
 
 function hold_kill(sysd::AbstractStateSpace{<:Discrete}, K::AbstractMatrix{Float64},
-        c::RealTimeScheduling.MissRow)
+        c::RealTimeScheduling.WeaklyHardConstraint)
     _hold_kill(sysd, K, _kill(c)...)
 end
 
@@ -270,7 +270,7 @@ function zero_kill(sysd::AbstractStateSpace{<:Discrete}, K::AbstractMatrix{Float
 end
 
 function zero_kill(sysd::AbstractStateSpace{<:Discrete}, K::AbstractMatrix{Float64},
-        c::RealTimeScheduling.MissRow)
+        c::RealTimeScheduling.WeaklyHardConstraint)
     _zero_kill(sysd, K, _kill(c)...)
 end
 
