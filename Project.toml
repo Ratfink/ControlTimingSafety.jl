@@ -11,6 +11,7 @@ Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 RealTimeScheduling = "f1524149-62f5-490d-8249-9bfac76a7111"
 
 [compat]
+ControlSystemsBase = "1"
 Distances = "0.10"
 RealTimeScheduling = "0.1.0"
 julia = "1"
