@@ -97,7 +97,8 @@ end
 function _hold_skip_next(sysd::AbstractStateSpace{<:Discrete},
         K::AbstractMatrix{Float64}, T::AbstractMatrix{Union{Int64,Missing}},
         μ::AbstractMatrix{Union{Int64,Missing}})
-    p, r = size(sysd.B)
+    A, B, C, _ = ssdata(sysd)
+    p, r = size(B)
 
     # Split apart the pieces of K, if necessary
     K_x = -K[:,1:p]
@@ -109,22 +110,22 @@ function _hold_skip_next(sysd::AbstractStateSpace{<:Discrete},
 
     # Put it all together, with the Φ matrices
     Automaton([# Φ_HH
-               [sysd.A  zeros(p, p)  sysd.B;
+               [A  zeros(p, p)  B;
                 zeros(p, 2p + r);
                 K_x  zeros(r, p)  K_u],
                # Φ_MH
-               [sysd.A  zeros(p, p)  sysd.B;
+               [A  zeros(p, p)  B;
                 zeros(p, 2p + r);
                 zeros(r, p)  K_x  K_u],
                # Φ_HM
-               [sysd.A  zeros(p, p)  sysd.B;
+               [A  zeros(p, p)  B;
                 I(p)  zeros(p, p + r);
                 zeros(r, 2p)  I(r)],
                # Φ_MM
-               [sysd.A  zeros(p, p)  sysd.B;
+               [A  zeros(p, p)  B;
                 zeros(p, p)  I(p)  zeros(p, r);
                 zeros(r, 2p)  I(r)]],
-              T, μ, 1, [sysd.C zeros(size(sysd.C, 1), p + r)])
+              T, μ, 1, [C zeros(size(C, 1), p + r)])
 end
 
 function _skip_next()
@@ -168,7 +169,8 @@ end
 function _zero_skip_next(sysd::AbstractStateSpace{<:Discrete},
         K::AbstractMatrix{Float64}, T::AbstractMatrix{Union{Int64,Missing}},
         μ::AbstractMatrix{Union{Int64,Missing}})
-    p, r = size(sysd.B)
+    A, B, C, _ = ssdata(sysd)
+    p, r = size(B)
 
     # Split apart the pieces of K, if necessary
     K_x = -K[:,1:p]
@@ -180,22 +182,22 @@ function _zero_skip_next(sysd::AbstractStateSpace{<:Discrete},
 
     # Put it all together, with the Φ matrices
     Automaton([# Φ_HH
-               [sysd.A  zeros(p, p)  sysd.B;
+               [A  zeros(p, p)  B;
                 zeros(p, 2p + r);
                 K_x  zeros(r, p)  K_u],
                # Φ_MH
-               [sysd.A  zeros(p, p)  sysd.B;
+               [A  zeros(p, p)  B;
                 zeros(p, 2p + r);
                 zeros(r, p)  K_x  K_u],
                # Φ_HM
-               [sysd.A  zeros(p, p)  sysd.B;
+               [A  zeros(p, p)  B;
                 I(p)  zeros(p, p + r);
                 zeros(r, 2p + r)],
                # Φ_MM
-               [sysd.A  zeros(p, p)  sysd.B;
+               [A  zeros(p, p)  B;
                 zeros(p, p)  I(p)  zeros(p, r);
                 zeros(r, 2p + r)]],
-              T, μ, 1, [sysd.C zeros(size(sysd.C, 1), p + r)])
+              T, μ, 1, [C zeros(size(C, 1), p + r)])
 end
 
 """
@@ -216,7 +218,8 @@ end
 
 function _hold_kill(sysd::AbstractStateSpace{<:Discrete}, K::AbstractMatrix{Float64},
         T::AbstractMatrix{Union{Int64,Missing}}, μ::AbstractMatrix{Union{Int64,Missing}})
-    p, r = size(sysd.B)
+    A, B, C, _ = ssdata(sysd)
+    p, r = size(B)
 
     # Split apart the pieces of K, if necessary
     K_x = -K[:,1:p]
@@ -228,12 +231,12 @@ function _hold_kill(sysd::AbstractStateSpace{<:Discrete}, K::AbstractMatrix{Floa
 
     # Put it all together, with the Φ matrices
     Automaton([# Φ_H
-               [sysd.A  sysd.B;
+               [A  B;
                 K_x  K_u],
                # Φ_M
-               [sysd.A  sysd.B;
+               [A  B;
                 zeros(r, p)  I(r)]],
-              T, μ, 1, [sysd.C zeros(size(sysd.C, 1), r)])
+              T, μ, 1, [C zeros(size(C, 1), r)])
 end
 
 function _kill()
@@ -273,7 +276,8 @@ end
 
 function _zero_kill(sysd::AbstractStateSpace{<:Discrete}, K::AbstractMatrix{Float64},
         T::AbstractMatrix{Union{Int64,Missing}}, μ::AbstractMatrix{Union{Int64,Missing}})
-    p, r = size(sysd.B)
+    A, B, C, _ = ssdata(sysd)
+    p, r = size(B)
 
     # Split apart the pieces of K, if necessary
     K_x = -K[:,1:p]
@@ -285,12 +289,12 @@ function _zero_kill(sysd::AbstractStateSpace{<:Discrete}, K::AbstractMatrix{Floa
 
     # Put it all together, with the Φ matrices
     Automaton([# Φ_H
-               [sysd.A  sysd.B;
+               [A  B;
                 K_x  K_u],
                # Φ_M
-               [sysd.A  sysd.B;
+               [A  B;
                 zeros(r, p + r)]],
-              T, μ, 1, [sysd.C zeros(size(sysd.C, 1), r)])
+              T, μ, 1, [C zeros(size(C, 1), r)])
 end
 
 """
