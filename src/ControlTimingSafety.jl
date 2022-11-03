@@ -2,6 +2,7 @@ module ControlTimingSafety
 
 using LinearAlgebra
 using Random
+using ControlSystemsBase
 using Distances
 
 export Automaton, nlocations, nactions

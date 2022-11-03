@@ -36,7 +36,7 @@ struct Automaton
     function Automaton(Φ, T, μ, l_int, C)
         nz = size(Φ[1], 1)
 
-        @boundscheck all(t -> t == (nz, nz), size.(Φ)) || throw(DimensionMismatch("All matrices in Φ must be square and equal size"))
+        @boundscheck all(ϕ -> size(ϕ) == (nz, nz), Φ) || throw(DimensionMismatch("All matrices in Φ must be square and equal size"))
         @boundscheck size(T) == size(μ) || throw(DimensionMismatch("T and μ must be of equal size"))
         @boundscheck l_int ∈ axes(T, 1) || throw(ArgumentError("l_int must be a valid index to the first dimension of T"))
         @boundscheck all(t -> ismissing(t) || t ∈ axes(T, 1), T) || throw(ArgumentError("All entries of T must be valid indices to the first dimension of T or missing"))
@@ -84,15 +84,19 @@ Construct an [`Automaton`](@ref) for the given discrete-time state space model `
 feedback gain matrix `K`, following the Hold&Skip-Next strategy.  If `c` is specified, the
 resulting `Automaton` will permit only that weakly hard constraint.
 """
-function hold_skip_next(sysd, K)
+function hold_skip_next(sysd::StateSpace{Discrete{Float64},Float64},
+        K::AbstractMatrix{Float64})
     _hold_skip_next(sysd, K, _skip_next()...)
 end
 
-function hold_skip_next(sysd, K, c::RealTimeScheduling.MissRow)
+function hold_skip_next(sysd::StateSpace{Discrete{Float64},Float64},
+        K::AbstractMatrix{Float64}, c::RealTimeScheduling.MissRow)
     _hold_skip_next(sysd, K, _skip_next(c)...)
 end
 
-function _hold_skip_next(sysd, K, T, μ)
+function _hold_skip_next(sysd::StateSpace{Discrete{Float64},Float64},
+        K::AbstractMatrix{Float64}, T::AbstractMatrix{Union{Int64,Missing}},
+        μ::AbstractMatrix{Union{Int64,Missing}})
     p, r = size(sysd.B)
 
     # Split apart the pieces of K, if necessary
@@ -151,15 +155,19 @@ Construct an [`Automaton`](@ref) for the given discrete-time state space model `
 feedback gain matrix `K`, following the Zero&Skip-Next strategy.  If `c` is specified, the
 resulting `Automaton` will permit only that weakly hard constraint.
 """
-function zero_skip_next(sysd, K)
+function zero_skip_next(sysd::StateSpace{Discrete{Float64},Float64},
+        K::AbstractMatrix{Float64})
     _zero_skip_next(sysd, K, _skip_next()...)
 end
 
-function zero_skip_next(sysd, K, c::RealTimeScheduling.MissRow)
+function zero_skip_next(sysd::StateSpace{Discrete{Float64},Float64},
+        K::AbstractMatrix{Float64}, c::RealTimeScheduling.MissRow)
     _zero_skip_next(sysd, K, _skip_next(c)...)
 end
 
-function _zero_skip_next(sysd, K, T, μ)
+function _zero_skip_next(sysd::StateSpace{Discrete{Float64},Float64},
+        K::AbstractMatrix{Float64}, T::AbstractMatrix{Union{Int64,Missing}},
+        μ::AbstractMatrix{Union{Int64,Missing}})
     p, r = size(sysd.B)
 
     # Split apart the pieces of K, if necessary
@@ -197,15 +205,17 @@ Construct an [`Automaton`](@ref) for the given discrete-time state space model `
 feedback gain matrix `K`, following the Hold&Kill strategy.  If `c` is specified, the
 resulting `Automaton` will permit only that weakly hard constraint.
 """
-function hold_kill(sysd, K)
+function hold_kill(sysd::StateSpace{Discrete{Float64},Float64}, K::AbstractMatrix{Float64})
     _hold_kill(sysd, K, _kill()...)
 end
 
-function hold_kill(sysd, K, c::RealTimeScheduling.MissRow)
+function hold_kill(sysd::StateSpace{Discrete{Float64},Float64}, K::AbstractMatrix{Float64},
+        c::RealTimeScheduling.MissRow)
     _hold_kill(sysd, K, _kill(c)...)
 end
 
-function _hold_kill(sysd, K, T, μ)
+function _hold_kill(sysd::StateSpace{Discrete{Float64},Float64}, K::AbstractMatrix{Float64},
+        T::AbstractMatrix{Union{Int64,Missing}}, μ::AbstractMatrix{Union{Int64,Missing}})
     p, r = size(sysd.B)
 
     # Split apart the pieces of K, if necessary
@@ -252,15 +262,17 @@ Construct an [`Automaton`](@ref) for the given discrete-time state space model `
 feedback gain matrix `K`, following the Zero&Kill strategy.  If `c` is specified, the
 resulting `Automaton` will permit only that weakly hard constraint.
 """
-function zero_kill(sysd, K)
+function zero_kill(sysd::StateSpace{Discrete{Float64},Float64}, K::AbstractMatrix{Float64})
     _zero_kill(sysd, K, _kill()...)
 end
 
-function zero_kill(sysd, K, c::RealTimeScheduling.MissRow)
+function zero_kill(sysd::StateSpace{Discrete{Float64},Float64}, K::AbstractMatrix{Float64},
+        c::RealTimeScheduling.MissRow)
     _zero_kill(sysd, K, _kill(c)...)
 end
 
-function _zero_kill(sysd, K, T, μ)
+function _zero_kill(sysd::StateSpace{Discrete{Float64},Float64}, K::AbstractMatrix{Float64},
+        T::AbstractMatrix{Union{Int64,Missing}}, μ::AbstractMatrix{Union{Int64,Missing}})
     p, r = size(sysd.B)
 
     # Split apart the pieces of K, if necessary
