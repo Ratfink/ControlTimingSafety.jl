@@ -72,7 +72,9 @@ function bounded_runs(a::Automaton, z_0::AbstractVecOrMat, n::Integer)
     act = Vector{Int64}(undef, n+1)
 
     # Bounding boxes for each time step, final location
-    ret = Array{Float64}(undef, a.nz, 2, n+1, nlocations(a)) * NaN
+    ret = Array{Float64}(undef, a.nz, 2, n+1, nlocations(a))
+    ret[:,1,:,:] .= Inf
+    ret[:,2,:,:] .= -Inf
 
     # Create the stack frame for time 0
     z[:,begin:end-1,1] = corners
@@ -86,9 +88,9 @@ function bounded_runs(a::Automaton, z_0::AbstractVecOrMat, n::Integer)
         if sp == n+1
             # Calculate min and max for this final location at each time step
             z[:,end,:] = view(ret,:,1,:,loc[sp])
-            minimum!(_safefloatmin, view(ret,:,1:1,:,loc[sp]), z)
+            minimum!(view(ret,:,1:1,:,loc[sp]), z, init=false)
             z[:,end,:] = view(ret,:,2,:,loc[sp])
-            maximum!(_safefloatmax, view(ret,:,2:2,:,loc[sp]), z)
+            maximum!(view(ret,:,2:2,:,loc[sp]), z, init=false)
             sp -= 1
         # If we're out of actions from this step
         elseif act[sp] > nactions(a)
