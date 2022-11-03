@@ -8,7 +8,7 @@ using Distances
 export Automaton, nlocations, nactions
 export hold_skip_next, zero_skip_next, hold_kill, zero_kill
 export strat_map, strat_names
-export evol_final, evol, augment
+export evol_final, evol, evol_final!, evol!, augment
 include("automata.jl")
 
 export corners_from_bounds, merge_bounds

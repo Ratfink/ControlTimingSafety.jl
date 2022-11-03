@@ -4,7 +4,13 @@ using ControlTimingSafety
 makedocs(
     sitename = "ControlTimingSafety",
     format = Documenter.HTML(),
-    modules = [ControlTimingSafety]
+    modules = [ControlTimingSafety],
+    pages = [
+        "index.md",
+        "automata.md",
+        "safety.md",
+        "probablesafety.md",
+    ]
 )
 
 # Documenter can also automatically deploy documentation to gh-pages.
