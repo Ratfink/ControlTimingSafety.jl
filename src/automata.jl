@@ -149,6 +149,44 @@ function _skip_next(c::RealTimeScheduling.MissRow)
     return T, μ
 end
 
+function _skip_next(c::RealTimeScheduling.MeetAny)
+    if c.meet == c.window
+        T, μ = _skip_next(RealTimeScheduling.MissRow(0))
+    elseif c.meet == 0
+        T, μ = _skip_next()
+    else
+        L = 2^c.window
+		T = zeros(Union{Missing, Int64}, (L, 2))
+		μ = zeros(Union{Missing, Int64}, (L, 2))
+
+        for i = 0:L-1
+            # hit
+			T[i+1, 1] = ((i << 1) & (L - 1) | 1) + 1
+            # miss
+			T[i+1, 2] = ((i << 1) & (L - 1)) + 1
+
+            # hit
+			μ[i+1, 1] = 2 - (i & 1)
+            # miss
+			μ[i+1, 2] = 4 - (i & 1)
+
+            # Check for constraint
+			for j = 1:2
+				if count_ones(T[i+1, j] - 1) < c.meet
+					T[i+1, j] = missing
+					μ[i+1, j] = missing
+				end
+			end
+		end
+
+        # TODO: figure out how to remove this
+		T = L + 1 .- T
+		reverse!(T, dims=1)
+		reverse!(μ, dims=1)
+    end
+    return T, μ
+end
+
 """
     zero_skip_next(sysd, K, [c])
 
@@ -254,6 +292,43 @@ function _kill(c::RealTimeScheduling.MissRow)
         μ = [1 2;
              repeat([1 2], c.miss-1, 1);
              1 missing]
+    end
+    return T, μ
+end
+
+function _kill(c::RealTimeScheduling.MeetAny)
+    if c.meet == c.window
+        T, μ = _kill(RealTimeScheduling.MissRow(0))
+    elseif c.meet == 0
+        T, μ = _kill()
+    else
+		L = 2^c.window
+		T = zeros(Union{Missing, Int64}, (L, 2))
+		μ = zeros(Union{Missing, Int64}, (L, 2))
+		for i = 0:L-1
+            # hit
+			T[i+1, 1] = ((i << 1) & (L - 1) | 1) + 1
+            # miss
+			T[i+1, 2] = ((i << 1) & (L - 1)) + 1
+
+			# hit
+            μ[i+1, 1] = 1
+            # miss
+			μ[i+1, 2] = 2
+
+            # Check for constraint
+			for j = 1:2
+				if count_ones(T[i+1, j] - 1) < c.meet
+					T[i+1, j] = missing
+					μ[i+1, j] = missing
+				end
+			end
+		end
+        
+        # TODO: figure out how to remove this
+		T = L + 1 .- T
+		reverse!(T, dims=1)
+		reverse!(μ, dims=1)
     end
     return T, μ
 end
