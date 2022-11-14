@@ -122,7 +122,7 @@ set at each of the `n`×`t+1` time steps.
 See also [`deviation`](@ref), which can be called with the result of this function to find
 the deviation from a nominal trajectory.
 """
-function bounded_runs_iter(a::Automaton, z_0::AbstractVecOrMat, n::Integer, t::Integer)
+function bounded_runs_iter(a::Automaton, z_0::AbstractVecOrMat, n::Integer, t::Integer; safety_margin::Float64=Inf)
     # Dimensions: time, augmented state, min/max
     all_bounds = Array{Float64}(undef, n*(t+1)+1, a.nz, 2)
     if isa(z_0, AbstractVector)
@@ -133,6 +133,13 @@ function bounded_runs_iter(a::Automaton, z_0::AbstractVecOrMat, n::Integer, t::I
 
     bounds = bounded_runs(a, z_0, n)
     all_bounds[1:n+1,:,:] = merge_bounds(bounds)[:,:,1:end]
+
+    if isfinite(safety_margin)
+        nom = evol(a, z_0, ones(n*(t+1)))
+        d = deviation(a, z_0, all_bounds[1:n+1,:,:], nominal_trajectory=nom[1:n+1])
+        if maximum(d) > safety_margin
+            return all_bounds
+        end
 
     # Dimensions: initial location, final location, time, augmented state, min/max
     new_bounds = Array{Float64}(undef, nlocations(a), nlocations(a), n+1, a.nz, 2)
@@ -148,6 +155,13 @@ function bounded_runs_iter(a::Automaton, z_0::AbstractVecOrMat, n::Integer, t::I
         end
         # Save the bounds
         all_bounds[n*i+2:n*(i+1)+1,:,:] = merge_bounds(bounds)[2:end,:,:]
+
+        if isfinite(safety_margin)
+            d = deviation(a, z_0, all_bounds[n*i+2:n*(i+1)+1,:,:], nominal_trajectory=nom[n*i+2:n*(i+1)+1])
+            if maximum(d) > safety_margin
+                return all_bounds
+            end
+        end
     end
     all_bounds
 end
