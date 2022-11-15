@@ -138,7 +138,7 @@ function bounded_runs_iter(a::Automaton, z_0::AbstractVecOrMat, n::Integer, t::I
         nom = evol(a, z_0, ones(n*(t+1)))
         d = deviation(a, z_0, all_bounds[1:n+1,:,:], nominal_trajectory=nom[1:n+1])
         if maximum(d) > safety_margin
-            return all_bounds
+            return all_bounds[1:n+1,:,:]
         end
 
     # Dimensions: initial location, final location, time, augmented state, min/max
@@ -159,7 +159,7 @@ function bounded_runs_iter(a::Automaton, z_0::AbstractVecOrMat, n::Integer, t::I
         if isfinite(safety_margin)
             d = deviation(a, z_0, all_bounds[n*i+2:n*(i+1)+1,:,:], nominal_trajectory=nom[n*i+2:n*(i+1)+1])
             if maximum(d) > safety_margin
-                return all_bounds
+                return all_bounds[1:n*(i+1)+1,:,:]
             end
         end
     end
