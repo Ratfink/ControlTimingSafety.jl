@@ -9,45 +9,63 @@ as in [`deviation`](@ref).  If `estimate` is specified, stop early if this devia
 estimate is exceeded, returning the exceeding deviation.
 """
 Base.@propagate_inbounds function maximum_deviation_random(a::Automaton,
-        sampler::RealTimeScheduling.SamplerUniformMissRow, samples::Int64, z_0;
+        sampler::RealTimeScheduling.SamplerUniformMissRow, samples::Int64,
+        z_0::AbstractVecOrMat{Float64};
         estimate::Union{Float64, Nothing}=nothing, metric::PreMetric=Euclidean(),
         nominal::AbstractVector{Int64}=ones(Int64,sampler.H),
         nominal_trajectory::Union{AbstractArray{Float64}, Nothing}=nothing)
     @boundscheck length(nominal) == sampler.H || throw(DimensionMismatch("nominal must have length sampler.H"))
     @boundscheck nominal_trajectory === nothing || size(nominal_trajectory) == (size(z_0,1), sampler.H+1) || throw(DimensionMismatch("nominal_trajectory must have size (size(z_0,1), sampler.H+1)"))
+    corners = corners_from_bounds(z_0)
     # Compute the nominal trajectory if not provided
     if nominal_trajectory === nothing
-        nominal_trajectory = evol(a, z_0, nominal)
+        nominal_trajectory = Array{Float64}(undef, size(z_0,1), sampler.H+1, size(corners,2))
+        for i in axes(corners, 2)
+            nominal_trajectory[:,:,i] = evol(a, corners[:,i], nominal)'
+        end
     end
-    Cnom = a.C * nominal_trajectory'
+    Cnom = Array{Float64}(undef, size(a.C,1), sampler.H+1, size(corners,2))
+    for i in axes(corners, 2)
+        Cnom[:,:,i] = a.C * nominal_trajectory[:,:,i]
+    end
 
     # Pre-allocate memory for things
     s = falses(sampler.H)
     beh = zeros(Int64, sampler.H)
-    z = zeros(sampler.H + 1, a.nz)
-    z[1,:] = z_0
-    Cz = zeros(size(a.C, 1), sampler.H + 1)
+    if z_0 isa AbstractVector
+        z = zeros(sampler.H + 1, a.nz, 1)
+        Cz = zeros(size(a.C, 1), sampler.H + 1, 1)
+    else
+        z = zeros(sampler.H + 1, a.nz, 2^size(z_0, 1))
+        Cz = zeros(size(a.C, 1), sampler.H + 1, size(z, 3))
+    end
+    z[1,:,:] = corners
     dist = zeros(Float64, length(nominal)+1)
 
-    maxdev = 0.0
+    H = zeros(sampler.H+1)
+    dist = Array{Float64}(undef, size(corners,2), size(corners,2))
+    r_row = zeros(1, size(corners,2))
+    r_col = zeros(size(corners,2), 1)
     for _ in 1:samples
         # Generate a random behavior
         rand!(s, sampler)
         beh .= 2 .- s
-        # Compute its evolution
-        evol!(a, z, beh)
-        # Compute the output
-        mul!(Cz, a.C, z')
+        for i in axes(z, 3)
+            # Compute its evolution
+            evol!(a, view(z,:,:,i), beh)
+            # Compute the output
+            mul!(view(Cz,:,:,i), a.C, view(z,:,:,i)')
+        end
         # Compute the distance between the output and nominal trajectory
-        colwise!(dist, metric, Cz, Cnom)
-        # If it's the biggest we've seen, store it
-        maxdev = max(maximum(dist), maxdev)
-        # Bail out early if we exceeded the estimate
-        if estimate !== nothing && maxdev > estimate
-            return maxdev
+        # TODO make sure this is computed correctly
+        for t in eachindex(H)
+            pairwise!(dist, metric, Cz[:,t,:], Cnom[:,t,:])
+            H_row = maximum(minimum!(r_row, dist))
+            H_col = maximum(minimum!(r_col, dist))
+            H[t] = max(H_row, H_col, H[t])
         end
     end
-    maxdev
+    maximum(H)
 end
 
 """
@@ -73,7 +91,7 @@ Base.@propagate_inbounds function estimate_deviation(a::Automaton,
     # Compute the number of samples to draw for the required confidence and Bayes factor
     K = ceil(Int64, -log(c, B+1))
     # Take our initial estimate from a small random sample
-    estimate = maximum_deviation_random(a, sampler, 20, z_0)
+    estimate = maximum_deviation_random(a, sampler, 50, z_0, metric=metric, nominal=nominal, nominal_trajectory=nominal_trajectory)
     # Test the hypothesis, formulating new ones if we fail to accept it
     while true
         max_seen = maximum_deviation_random(a, sampler, K, z_0, metric=metric,
