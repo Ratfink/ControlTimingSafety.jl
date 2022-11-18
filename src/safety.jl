@@ -140,6 +140,7 @@ function bounded_runs_iter(a::Automaton, z_0::AbstractVecOrMat, n::Integer, t::I
         if maximum(d) > safety_margin
             return all_bounds[1:n+1,:,:]
         end
+    end
 
     # Dimensions: initial location, final location, time, augmented state, min/max
     new_bounds = Array{Float64}(undef, nlocations(a), nlocations(a), n+1, a.nz, 2)
