@@ -16,7 +16,7 @@ Base.@propagate_inbounds function maximum_deviation_random(a::Automaton,
         nominal_trajectory::Union{AbstractArray{Float64}, Nothing}=nothing)
     @boundscheck length(nominal) == sampler.H || throw(DimensionMismatch("nominal must have length sampler.H"))
     @boundscheck nominal_trajectory === nothing || size(nominal_trajectory) == (size(z_0,1), sampler.H+1) || throw(DimensionMismatch("nominal_trajectory must have size (size(z_0,1), sampler.H+1)"))
-    corners = corners_from_bounds(z_0)
+    corners = unique(corners_from_bounds(z_0), dims=2)
     # Compute the nominal trajectory if not provided
     if nominal_trajectory === nothing
         nominal_trajectory = Array{Float64}(undef, size(z_0,1), sampler.H+1, size(corners,2))
@@ -36,7 +36,7 @@ Base.@propagate_inbounds function maximum_deviation_random(a::Automaton,
         z = zeros(sampler.H + 1, a.nz, 1)
         Cz = zeros(size(a.C, 1), sampler.H + 1, 1)
     else
-        z = zeros(sampler.H + 1, a.nz, 2^size(z_0, 1))
+        z = zeros(sampler.H + 1, a.nz, size(corners, 2))
         Cz = zeros(size(a.C, 1), sampler.H + 1, size(z, 3))
     end
     z[1,:,:] = corners
@@ -57,7 +57,6 @@ Base.@propagate_inbounds function maximum_deviation_random(a::Automaton,
             mul!(view(Cz,:,:,i), a.C, view(z,:,:,i)')
         end
         # Compute the distance between the output and nominal trajectory
-        # TODO make sure this is computed correctly
         for t in eachindex(H)
             pairwise!(dist, metric, Cz[:,t,:], Cnom[:,t,:])
             H_row = maximum(minimum!(r_row, dist))
