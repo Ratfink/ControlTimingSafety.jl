@@ -63,6 +63,10 @@ Base.@propagate_inbounds function maximum_deviation_random(a::Automaton,
             H_col = maximum(minimum!(r_col, dist))
             H[t] = max(H_row, H_col, H[t])
         end
+        # Exit early if the estimate is exceeded
+        if estimate !== nothing && any(H .> estimate)
+            return maximum(H)
+        end
     end
     maximum(H)
 end
