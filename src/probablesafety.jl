@@ -72,13 +72,19 @@ Base.@propagate_inbounds function maximum_deviation_random(a::Automaton,
 end
 
 """
-    estimate_deviation(a, sampler, z_0, c, B; nominal, nominal_trajectory)
+    estimate_deviation(a, sampler, z_0, c, B; nominal, nominal_trajectory,
+                       estimate, estimate_samples, ϵ)
 
 Estimate the deviation possible in the [`Automaton`](@ref) `a`, using `sampler` to generate
 random behaviors.  The initial state is given as `z_0`.  `c` specifies the confidence with
 which the returned value is asserted to be an upper bound, and `B` is the Bayes factor used
 in hypothesis testing.  The parameters `metric`, `nominal`, and `nominal_trajectory` are as
 in [`deviation`](@ref).
+
+If `estimate` is given, this value is used as the initial estimate for the first hypothesis
+formulated.  Otherwise, `estimate_samples` random runs (default: 50) are taken, and the
+greatest deviation seen is used for the first hypothesis.  A pad of `ϵ` is added to each
+subsequent hypothesis.
 
 For more information, see Bineet Ghosh et al., "Statistical Hypothesis Testing of Controller
 Implementations Under Timing Uncertainties," RTCSA 2022. 
@@ -87,14 +93,17 @@ DOI: [10.1109/RTCSA55878.2022.00008](https://doi.org/10.1109/RTCSA55878.2022.000
 Base.@propagate_inbounds function estimate_deviation(a::Automaton,
         sampler::RealTimeScheduling.SamplerUniformMissRow, z_0, c::Float64, B::Float64;
         metric::PreMetric=Euclidean(), nominal::AbstractVector{Int64}=ones(Int64,sampler.H),
-        nominal_trajectory::Union{AbstractArray{Float64}, Nothing}=nothing)
+        nominal_trajectory::Union{AbstractArray{Float64}, Nothing}=nothing,
+        estimate::Union{Float64, Nothing}=nothing, estimate_samples::Int64=50, ϵ::Float64=0.)
     @boundscheck length(nominal) == sampler.H || throw(DimensionMismatch("nominal must have length sampler.H"))
     @boundscheck nominal_trajectory === nothing || size(nominal_trajectory) == (size(z_0,1), sampler.H+1) || throw(DimensionMismatch("nominal_trajectory must have size (size(z_0,1), sampler.H+1)"))
 
     # Compute the number of samples to draw for the required confidence and Bayes factor
     K = ceil(Int64, -log(c, B+1))
-    # Take our initial estimate from a small random sample
-    estimate = maximum_deviation_random(a, sampler, 50, z_0, metric=metric, nominal=nominal, nominal_trajectory=nominal_trajectory)
+    if estimate === nothing
+        # Take our initial estimate from a small random sample
+        estimate = maximum_deviation_random(a, sampler, estimate_samples, z_0, metric=metric, nominal=nominal, nominal_trajectory=nominal_trajectory)
+    end
     # Test the hypothesis, formulating new ones if we fail to accept it
     while true
         max_seen = maximum_deviation_random(a, sampler, K, z_0, metric=metric,
@@ -103,7 +112,7 @@ Base.@propagate_inbounds function estimate_deviation(a::Automaton,
         if max_seen <= estimate
             break
         end
-        estimate = max_seen
+        estimate = max_seen + ϵ
     end
     estimate
 end
