@@ -13,7 +13,7 @@ RealTimeScheduling = "f1524149-62f5-490d-8249-9bfac76a7111"
 [compat]
 ControlSystemsBase = "1"
 Distances = "0.10"
-RealTimeScheduling = "0.2"
+RealTimeScheduling = "0.2, 0.3"
 julia = "^1.6"
 
 [extras]
