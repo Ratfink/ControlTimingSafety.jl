@@ -181,17 +181,16 @@ Base.@propagate_inbounds function deviation(a::Automaton, z_0::AbstractVecOrMat{
     reachable_corners = cat([corners_from_bounds(a.C * reachable[t,:,:]) for t in axes(reachable, 1)]..., dims=3)
 
     # Dimensions: state variables, points, time
-    if z_0 isa AbstractVector{Float64}
-        # XXX Not the most memory-efficient solution, but keeps us from having
-        # to maintain two nearly-identical methods of the function.
-        z_0 = [z_0 z_0]
-    end
     if nominal_trajectory === nothing
-        nominal_trajectory = Array{Float64}(undef, size(a.C, 1), 2^size(z_0,1), size(reachable, 1))
-        corners = corners_from_bounds(z_0)
-        for (i, c) in enumerate(eachcol(corners))
-            e = evol(a, c, nominal)
-            nominal_trajectory[:,i,:] = a.C * e'
+        if z_0 isa AbstractVector{Float64}
+            nominal_trajectory = reshape(a.C * evol(a, z_0, nominal)', size(a.C, 1), 1, size(reachable, 1))
+        else
+            nominal_trajectory = Array{Float64}(undef, size(a.C, 1), 2^size(z_0,1), size(reachable, 1))
+            corners = corners_from_bounds(z_0)
+            for (i, c) in enumerate(eachcol(corners))
+                e = evol(a, c, nominal)
+                nominal_trajectory[:,i,:] = a.C * e'
+            end
         end
     end
 
