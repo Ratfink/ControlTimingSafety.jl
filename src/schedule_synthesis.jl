@@ -18,15 +18,20 @@ function synthesize_constraints(sysd::AbstractStateSpace{<:Discrete},
     K::AbstractMatrix{Float64}, z_0::AbstractVecOrMat, d_max::Float64,
     maxwindow::Integer, n::Integer, t::Integer)
 
+    # TODO: 
+    #   1) Test to make sure it works the same
+    #   2) Discuss: should additional safe constraints be included in result? 
+    #      Or only the ones that are actually checked & useful for scheduling
     safe_constraints = RealTimeScheduling.MeetAny[]
 
-    # Do not need to go through all O(maxwindow^2) constraints
+    # Do not need to go through all O(maxwindow^2) constraints,
     # see paper for optimization argument
     meet = 1
     for window in 2:maxwindow
         while meet < window
             constraint = RealTimeScheduling.MeetAny(meet, window)
             a = hold_kill(sysd, K, constraint)
+            # Check if the deviation bound is within the safety margin
             if maximum(bounded_runs_iter(a, z_0, n, t, safety_margin=d_max)) <= d_max
                 # All constraints with (m, window) where m >= meet are valid
                 push!(safe_constraints, constraint)
