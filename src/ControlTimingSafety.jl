@@ -18,4 +18,7 @@ include("safety.jl")
 export maximum_deviation_random, estimate_deviation
 include("probablesafety.jl")
 
+export schedule_xghtc, synthesize_constraints
+include("schedule_synthesis.jl")
+
 end

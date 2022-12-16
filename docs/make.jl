@@ -10,6 +10,7 @@ makedocs(
         "automata.md",
         "safety.md",
         "probablesafety.md",
+        "schedule_synthesis.md"
     ]
 )
 
