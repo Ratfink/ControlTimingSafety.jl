@@ -28,4 +28,5 @@ of the above functions, and are potentially useful to their callers as well.
 ```@docs
 corners_from_bounds
 merge_bounds
+merge_bounds!
 ```
