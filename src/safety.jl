@@ -147,22 +147,26 @@ function bounded_runs_iter(a::Automaton, z_0::AbstractVecOrMat, n::Integer, t::I
     end
 
     bounds = bounded_runs(a, z_0, n)
-    all_bounds[1:n+1,:,:] = merge_bounds(bounds)[:,:,1:end]
+    merge_bounds!(view(all_bounds, 1:n+1, :, :), bounds)
+
+    A = Array{Automaton}(undef, length(a.L))
+    for i in a.L
+        A[i] = Automaton(a, i)
+    end
 
     # Dimensions: initial location, final location, time, augmented state, min/max
     new_bounds = Array{Float64}(undef, nlocations(a), nlocations(a), n+1, a.nz, 2)
     for i in 1:t
         # Simulate each box from previous iteration
         for i in a.L
-            a = Automaton(a, i)
-            new_bounds[i,:,:,:,:] = bounded_runs(a, bounds[i,end,:,:], n)
+            new_bounds[i,:,:,:,:] = bounded_runs(A[i], bounds[i,end,:,:], n)
         end
         # Merge resulting boxes from these simulations
         for i in a.L
-            bounds[i,:,:,:] = merge_bounds(new_bounds[:,i,:,:,:])
+            merge_bounds!(view(bounds, i, :, :, :), view(new_bounds, :, i, :, :, :))
         end
         # Save the bounds
-        all_bounds[n*i+2:n*(i+1)+1,:,:] = merge_bounds(bounds)[2:end,:,:]
+        merge_bounds!(view(all_bounds, n*i+1:n*(i+1)+1, :, :), bounds)
     end
     all_bounds
 end
