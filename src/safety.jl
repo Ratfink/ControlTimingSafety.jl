@@ -36,11 +36,26 @@ _safefloatmax(x) = (isnan(x) || isinf(x)) ? -Inf : x
     merge_bounds(b)
 
 Merges an array of bounding boxes `b` into one.
+
+See also [`merge_bounds!`](@ref).
 """
 function merge_bounds(b)
-    mins = minimum(_safefloatmin, b[:,:,:,1], dims=1)
-    maxs = maximum(_safefloatmax, b[:,:,:,2], dims=1)
-    cat(dims=4, mins, maxs)[1,:,:,:]
+    r = similar(b, axes(b)[2:4])
+    merge_bounds!(r, b)
+end
+
+
+"""
+    merge_bounds!(r, b)
+
+Merges an array of bounding boxes `b` into one, storing the result in `r`.
+
+See also [`merge_bounds`](@ref).
+"""
+function merge_bounds!(r, b)
+    minimum!(_safefloatmin, reshape(view(r, :, :, 1), 1, size(r, 1), size(r, 2)), view(b, :, :, :, 1))
+    maximum!(_safefloatmax, reshape(view(r, :, :, 2), 1, size(r, 1), size(r, 2)), view(b, :, :, :, 2))
+    r
 end
 
 """
