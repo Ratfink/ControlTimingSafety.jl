@@ -58,6 +58,11 @@ function merge_bounds!(r, b)
     r
 end
 
+mutable struct _StackFrame
+    z::Matrix{Float64}
+    loc::Int64
+    act::Int64
+end
 """
     bounded_runs(a::Automaton, z_0, n)
 
@@ -82,9 +87,10 @@ function bounded_runs(a::Automaton, z_0::AbstractVecOrMat, n::Integer)
 
     # Stack
     # z gets one extra entry in the third dimension for cheap concatenation in leaf nodes
-    z = Array{Float64}(undef, size(corners,1), size(corners,2)+1, n+1)
-    loc = Vector{Int64}(undef, n+1)
-    act = Vector{Int64}(undef, n+1)
+    st = Array{_StackFrame}(undef, n+1)
+    for i in eachindex(st)
+        st[i] = _StackFrame(Array{Float64}(undef, size(corners,1), size(corners,2)+1), a.l_int, 1)
+    end
 
     # Bounding boxes for each time step, final location
     ret = Array{Float64}(undef, a.nz, 2, n+1, nlocations(a))
@@ -92,9 +98,7 @@ function bounded_runs(a::Automaton, z_0::AbstractVecOrMat, n::Integer)
     ret[:,2,:,:] .= -Inf
 
     # Create the stack frame for time 0
-    z[:,begin:end-1,1] = corners
-    loc[1] = a.l_int
-    act[1] = 1
+    st[1].z[:,begin:end-1] = corners
     # Initialize the stack pointer
     sp = 1
     # While we haven't popped all the way out
@@ -102,24 +106,26 @@ function bounded_runs(a::Automaton, z_0::AbstractVecOrMat, n::Integer)
         # If we've reached a leaf
         if sp == n+1
             # Calculate min and max for this final location at each time step
-            z[:,end,:] = view(ret,:,1,:,loc[sp])
-            minimum!(view(ret,:,1:1,:,loc[sp]), z, init=false)
-            z[:,end,:] = view(ret,:,2,:,loc[sp])
-            maximum!(view(ret,:,2:2,:,loc[sp]), z, init=false)
+            for (i, sf) in enumerate(st)
+                sf.z[:,end] = view(ret,:,1,i,st[sp].loc)
+                minimum!(view(ret,:,1:1,i,st[sp].loc), sf.z, init=false)
+                sf.z[:,end] = view(ret,:,2,i,st[sp].loc)
+                maximum!(view(ret,:,2:2,i,st[sp].loc), sf.z, init=false)
+            end
             sp -= 1
         # If we're out of actions from this step
-        elseif act[sp] > nactions(a)
+        elseif st[sp].act > nactions(a)
             sp -= 1
         # If the transition is missing
-        elseif ismissing(a.T[loc[sp], act[sp]])
+        elseif ismissing(a.T[st[sp].loc, st[sp].act])
             # Try the next transition
-            act[sp] += 1
+            st[sp].act += 1
         # If the transition is present
         else
-            mul!(view(z,:,1:size(corners,2),sp+1), a.Φ[a.μ[loc[sp], act[sp]]], view(z,:,1:size(corners,2),sp))
-            loc[sp+1] = a.T[loc[sp], act[sp]]
-            act[sp+1] = 1
-            act[sp] += 1
+            mul!(st[sp+1].z, a.Φ[a.μ[st[sp].loc, st[sp].act]], st[sp].z)
+            st[sp+1].loc = a.T[st[sp].loc, st[sp].act]
+            st[sp+1].act = 1
+            st[sp].act += 1
             sp += 1
         end
     end
