@@ -135,8 +135,14 @@ function bounded_runs_iter(a::Automaton, z_0::AbstractVecOrMat, n::Integer, t::I
     all_bounds[1:n+1,:,:] = merge_bounds(bounds)[:,:,1:end]
 
     if isfinite(safety_margin)
-        nom = evol(a, z_0, ones(n*(t+1)))
-        d = deviation(a, z_0, all_bounds[1:n+1,:,:], nominal_trajectory=nom[1:n+1])
+        nominal = ones(Int64, n*(t+1))
+        nom = Array{Float64}(undef, size(a.C, 1), 2^size(z_0,1), n*(t+1)+1)
+        corners = corners_from_bounds(z_0)
+        for (i, c) in enumerate(eachcol(corners))
+            e = evol(a, c, nominal)
+            nom[:,i,:] = a.C * e'
+        end
+        d = deviation(a, z_0, all_bounds[1:n+1,:,:], nominal_trajectory=nom[:,:,1:n+1])
         if maximum(d) > safety_margin
             return all_bounds[1:n+1,:,:]
         end
@@ -158,7 +164,7 @@ function bounded_runs_iter(a::Automaton, z_0::AbstractVecOrMat, n::Integer, t::I
         all_bounds[n*i+2:n*(i+1)+1,:,:] = merge_bounds(bounds)[2:end,:,:]
 
         if isfinite(safety_margin)
-            d = deviation(a, z_0, all_bounds[n*i+2:n*(i+1)+1,:,:], nominal_trajectory=nom[n*i+2:n*(i+1)+1])
+            d = deviation(a, z_0, all_bounds[n*i+2:n*(i+1)+1,:,:], nominal_trajectory=nom[:,:,n*i+2:n*(i+1)+1])
             if maximum(d) > safety_margin
                 return all_bounds[1:n*(i+1)+1,:,:]
             end
