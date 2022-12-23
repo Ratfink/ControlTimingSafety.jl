@@ -79,7 +79,10 @@ function synthesize_constraints(sysd::AbstractStateSpace{<:Discrete},
             constraint = RealTimeScheduling.MeetAny(meet, window)
             a = hold_kill(sysd, K, constraint)
             # Check if the deviation bound is within the safety margin
-            if maximum(bounded_runs_iter(a, z_0, n, t, safety_margin=d_max)) <= d_max
+            reachable = bounded_runs_iter(a, z_0, n, t)
+            m = maximum(deviation(a, z_0, reachable))
+            @info constraint, m
+            if m <= d_max
                 # All constraints with (m, window) where m >= meet are valid
                 push!(safe_constraints, constraint)
                 break
