@@ -157,13 +157,12 @@ function _state_separation(l, B; indigits=false)
     end
 end
 
-
 """
-Struct for an abstract controller automaton which enforces only the weakly 
+Struct for a controller automaton which enforces only the weakly 
 hard constraint for that controller. i.e., it is not concerned with the
 dynamical matrix of the system.
 """
-struct _AbstractAutomaton
+struct _ConstraintAutomaton
     # # of locations. Legal locations are in the range 0:L-1.
     L::Int64
     # # of actions. Legal actions are in the range 0:Σ-1.
@@ -177,7 +176,7 @@ struct _AbstractAutomaton
 end
 
 """
-Struct for a synthesized automaton from multiple abstract automata.
+Struct for a synthesized automaton from multiple constraint automata.
 """
 struct _SynthesizedAutomaton
     # # of comprising automata
@@ -197,7 +196,7 @@ struct _SynthesizedAutomaton
 end
 
 """
-Build an abstract controller automaton for the given weakly hard constraint
+Build an constraint controller automaton for the given weakly hard constraint
 """
 function _controller_automaton(c::RealTimeScheduling.WeaklyHardConstraint)
     # Define the automaton's structure. State l=0 is the dead state (trapping)
@@ -219,13 +218,13 @@ function _controller_automaton(c::RealTimeScheduling.WeaklyHardConstraint)
     end
     
     # Put it all together. Starting position is L-1 since there is no miss from the beginning
-    _AbstractAutomaton(L, 2, T, L-1, !iszero)
+    _ConstraintAutomaton(L, 2, T, L-1, !iszero)
 end
 
 """
 Build a scheduler automaton from a given list of controller automata
 """
-function _scheduler_automaton(controllers::Vector{_AbstractAutomaton}; slotsize::Int64=1)
+function _scheduler_automaton(controllers::Vector{_ConstraintAutomaton}; slotsize::Int64=1)
     # Converting tuple to array with collect()
     N = length(controllers)
     B = map(a -> ceil(Int64, log2(a.L)), controllers) |> collect
