@@ -193,7 +193,7 @@ struct _SynthesizedAutomaton
     # Initial location in L.
     l_0::Int64
     # Function that returns whether a location is final.
-    Q_f::Function       
+    Q_f::Function
 end
 
 """
