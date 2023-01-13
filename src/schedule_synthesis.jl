@@ -164,24 +164,36 @@ hard constraint for that controller. i.e., it is not concerned with the
 dynamical matrix of the system.
 """
 struct _AbstractAutomaton
-    L::Int64			# # of locations. Legal locations are in the range 0:L-1.
-    Σ::Int64			# # of actions. Legal actions are in the range 0:Σ-1.
-    T::Function			# Transition function. T(l,σ) is a location in 0:L-1.
-    l_0::Int64			# Initial location in L.
-    Q_f::Function		# Function that returns whether a location is final
+    # # of locations. Legal locations are in the range 0:L-1.
+    L::Int64
+    # # of actions. Legal actions are in the range 0:Σ-1.
+    Σ::Int64
+    # Transition function. T(l,σ) is a location in 0:L-1.
+    T::Function
+    # Initial location in L.
+    l_0::Int64
+    # Function that returns whether a location is final
+    Q_f::Function
 end
 
 """
 Struct for a synthesized automaton from multiple abstract automata.
 """
 struct _SynthesizedAutomaton
-    N::Int64			# # of comprising automata
-    B::Vector{Int64}	# List of bits for all comprising controllers
-    L::Int64			# Locations. Legal locations are in the range 0:L-1.
-    Σ::Vector{Int64}	# List of actions.
-    T::Function			# Transition function.  T(l,σ) is a location in 0:L-1.
-    l_0::Int64			# Initial location in L.
-    Q_f::Function		# Function that returns whether a location is final.
+    # # of comprising automata
+    N::Int64
+    # List of bits for all comprising controllers
+    B::Vector{Int64}
+    # Locations. Legal locations are in the range 0:L-1.
+    L::Int64
+    # List of actions.
+    Σ::Vector{Int64}
+    # Transition function.  T(l,σ) is a location in 0:L-1.
+    T::Function
+    # Initial location in L.
+    l_0::Int64
+    # Function that returns whether a location is final.
+    Q_f::Function       
 end
 
 """

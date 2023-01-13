@@ -13,7 +13,7 @@ function corners_from_bounds(bounds::AbstractMatrix; cycle::Bool=false, dims=axe
     ldims = length(dims)
 
     corners = cat(reshape([[c...] for c in Base.product(eachrow(bounds[dims,:])...)],
-			  2^ldims)..., dims=2)
+              2^ldims)..., dims=2)
     if cycle
         gray(x) = x ⊻ (x >> 1)
         [corners[:,gray.(0:2^ldims-1) .+ 1] corners[:,1]]
