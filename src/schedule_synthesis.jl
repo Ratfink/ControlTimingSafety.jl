@@ -1,3 +1,6 @@
+using RealTimeScheduling
+using DataStructures
+
 """
     schedule_xghtc(constraints; slotsize=1, H=100)
 
