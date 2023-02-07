@@ -66,7 +66,7 @@ Find all `MeetAny` weakly hard constraints with window size at most `maxwindow` 
 """
 function synthesize_constraints(sysd::AbstractStateSpace{<:Discrete},
     K::AbstractMatrix{Float64}, z_0::AbstractVecOrMat, d_max::Float64,
-    maxwindow::Int64, n::Int64, t::Int64)::Vector{WeaklyHardConstraint}
+    maxwindow::Int64, n::Int64, t::Int64)
 
     # TODO: 
     #   1) Test to make sure it works the same
@@ -107,7 +107,7 @@ julia> _undigit([1, 0, 0])
 4
 ```
 """
-function _undigit(d::Vector{Int64}; base=2)::Int64
+function _undigit(d::Vector{Int64}; base=2)
     s = 0
     mult = 1
     for val in reverse(d)
@@ -123,7 +123,7 @@ end
 Digits **b**ase **2**, **r**everse
 A shortcut for `digits(x, base=2, pad=pad) |> reverse`
 """
-function _digits_b2r(x::Int64, pad::Int64=0)::Vector{Int64}
+function _digits_b2r(x::Int64, pad::Int64=0)
     digits(x, base=2, pad=pad) |> reverse
 end
 
