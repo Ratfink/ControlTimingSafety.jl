@@ -11,7 +11,7 @@ export strat_map, strat_names
 export evol_final, evol, evol_final!, evol!, augment
 include("automata.jl")
 
-export corners_from_bounds, merge_bounds
+export corners_from_bounds, merge_bounds, merge_bounds!
 export bounded_runs, bounded_runs_iter, deviation
 include("safety.jl")
 
