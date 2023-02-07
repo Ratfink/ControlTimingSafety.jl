@@ -8,7 +8,7 @@ Generate a schedule for a set of weakly hard constraints. The schedule assumes t
     
 Shengjie Xu, Bineet Ghosh, Clara Hobbs, P.S. Thiagarajan, and Samarjit Chakraborty, "Safety-Aware Flexible Schedule Synthesis for Cyber-Physical Systems using Weakly-Hard Constraints." ASP-DAC 2023.
 """
-function schedule_xghtc(constraints::Vector{<:WeaklyHardConstraint}; slotsize::Int64=1, H::Int64=100)
+function schedule_xghtc(constraints::Vector{<:MeetAny}; slotsize::Int64=1, H::Int64=100)
     # Check if "utilization" is greater than available slot size
     utilization = sum(c -> c.meet/c.window, constraints)
     if utilization > slotsize
@@ -16,8 +16,8 @@ function schedule_xghtc(constraints::Vector{<:WeaklyHardConstraint}; slotsize::I
     end
 
     # Create the scheduler automaton from individual constraints
-    controllers = _controller_automaton.(constraints)
-    AS = _scheduler_automaton(controllers, slotsize=slotsize)
+    controllers = _ConstraintAutomaton.(constraints)
+    AS = _SynthesizedAutomaton(controllers, slotsize=slotsize)
 
     # Initialize the list of current states from the initial state of
     # scheduler automaton
@@ -178,29 +178,9 @@ struct _ConstraintAutomaton
 end
 
 """
-Struct for a synthesized automaton from multiple constraint automata.
-"""
-struct _SynthesizedAutomaton
-    # # of comprising automata
-    N::Int64
-    # List of bits for all comprising controllers
-    B::Vector{Int64}
-    # Locations. Legal locations are in the range 0:L-1.
-    L::Int64
-    # List of actions.
-    Σ::Vector{Int64}
-    # Transition function.  T(l,σ) is a location in 0:L-1.
-    T::Function
-    # Initial location in L.
-    l_0::Int64
-    # Function that returns whether a location is final.
-    Q_f::Function
-end
-
-"""
 Build an constraint controller automaton for the given weakly hard constraint
 """
-function _controller_automaton(c::WeaklyHardConstraint)
+function _ConstraintAutomaton(c::MeetAny)
     # Define the automaton's structure. State l=0 is the dead state (trapping)
     if c.meet == 0
         # No requirement. Always valid.
@@ -224,9 +204,29 @@ function _controller_automaton(c::WeaklyHardConstraint)
 end
 
 """
+Struct for a synthesized automaton from multiple constraint automata.
+"""
+struct _SynthesizedAutomaton
+    # # of comprising automata
+    N::Int64
+    # List of bits for all comprising controllers
+    B::Vector{Int64}
+    # Locations. Legal locations are in the range 0:L-1.
+    L::Int64
+    # List of actions.
+    Σ::Vector{Int64}
+    # Transition function.  T(l,σ) is a location in 0:L-1.
+    T::Function
+    # Initial location in L.
+    l_0::Int64
+    # Function that returns whether a location is final.
+    Q_f::Function
+end
+
+"""
 Build a scheduler automaton from a given list of controller automata
 """
-function _scheduler_automaton(controllers::Vector{_ConstraintAutomaton}; slotsize::Int64=1)
+function _SynthesizedAutomaton(controllers::Vector{_ConstraintAutomaton}; slotsize::Int64=1)
     # Converting tuple to array with collect()
     N = length(controllers)
     B = map(a -> ceil(Int64, log2(a.L)), controllers) |> collect
