@@ -123,9 +123,7 @@ end
 Digits **b**ase **2**, **r**everse
 A shortcut for `digits(x, base=2, pad=pad) |> reverse`
 """
-function _digits_b2r(x::Int64, pad::Int64=0)
-    digits(x, base=2, pad=pad) |> reverse
-end
+_digits_b2r(x::Int64, pad::Int64=0) = digits(x, base=2, pad=pad) |> reverse
 
 """
     _state_separation(l, B[, indigits=false])
