@@ -23,7 +23,7 @@ function schedule_xghtc(constraints::Vector{<:WeaklyHardConstraint}; slotsize::I
     # scheduler automaton
     current_states = Dict{Int64, LinkedList{Int64}}(AS.l_0 => list(AS.l_0))
 
-    # Traverse the tree until 
+    # Traverse the automaton until 
     #   (1) the required number of steps is reached,
     #   (2) a cycle is found, or 
     #   (3) no more states are valid for exploration
