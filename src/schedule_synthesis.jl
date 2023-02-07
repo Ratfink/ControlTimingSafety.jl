@@ -123,7 +123,7 @@ end
 Digits **b**ase **2**, **r**everse
 A shortcut for `digits(x, base=2, pad=pad) |> reverse`
 """
-_digits_b2r(x::Int64, pad::Int64=0) = digits(x, base=2, pad=pad) |> reverse
+_digits_b2r(x::Int64; pad::Int64=0) = digits(x, base=2, pad=pad) |> reverse
 
 """
     _state_separation(l, B[, indigits=false])
@@ -239,14 +239,10 @@ function _SynthesizedAutomaton(controllers::Vector{_ConstraintAutomaton}; slotsi
         @assert l < L "Illegal location"
         @assert σ in Σ "Illegal action"
         states = _state_separation(l, B)
-        actions = _digits_b2r(σ, N)
-        # @info σ, actions
+        actions = _digits_b2r(σ, pad=N)
         new_locations = map((controller, l, σ) -> controller.T(l, σ), controllers, states, actions)
-        # @info states, actions, new_locations
-        new_location_bits = map((x, y) -> _digits_b2r(x, y), new_locations, B)
-        # @info new_location_bits
+        new_location_bits = map((l, b) -> _digits_b2r(l, pad=b), new_locations, B)
         result = Iterators.flatten(new_location_bits) |> collect |> _undigit
-        # @info _digits_b2r(result)
         result
     end
 
