@@ -1,4 +1,5 @@
 using LinearAlgebra
+using RealTimeScheduling
 
 @testset "Schedule Synthesis" begin
      sys = let
@@ -30,9 +31,40 @@ using LinearAlgebra
           state_cost = 2
           control_cost = 1
           Q = I * state_cost
-          R = [control_cost;;]
+          R = I * control_cost
           lqr(sysd_delay, Q, R)
      end
 
-     synthesize_constraints(sysd, K, repeat([10.0], 3), 5.5, 6, 10, 10)
+     @test synthesize_constraints(sysd, K, repeat([10.0], 3), 5.5, 6, 10, 10) == [
+          RealTimeScheduling.MeetAny(1, 2),
+          RealTimeScheduling.MeetAny(2, 3),
+          RealTimeScheduling.MeetAny(3, 4),
+          RealTimeScheduling.MeetAny(4, 5),
+          RealTimeScheduling.MeetAny(5, 6)
+     ]
+
+     @test schedule_xghtc([
+          RealTimeScheduling.MeetAny(1, 3),
+          RealTimeScheduling.MeetAny(2, 3),
+          RealTimeScheduling.MeetAny(1, 4),
+          RealTimeScheduling.MeetAny(1, 4),
+          RealTimeScheduling.MeetAny(1, 2)
+     ], slotsize=2) == [
+          [0, 1, 1, 0, 0],
+          [0, 1, 0, 0, 1],
+          [1, 0, 0, 1, 0],
+          [0, 1, 0, 0, 1],
+          [0, 1, 1, 0, 0],
+          [1, 0, 0, 0, 1],
+          [0, 1, 0, 1, 0],
+          [0, 1, 0, 0, 1],
+          [1, 0, 1, 0, 0],
+          [0, 1, 0, 0, 1],
+          [0, 1, 0, 1, 0],
+          [1, 0, 0, 0, 1],
+          [0, 1, 1, 0, 0],
+          [0, 1, 0, 0, 1],
+          [1, 0, 0, 1, 0],
+          [0, 1, 0, 0, 1]
+     ]
 end
