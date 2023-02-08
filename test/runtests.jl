@@ -1,6 +1,8 @@
 using Test
 using ControlSystemsBase
 
+using ControlTimingSafety
+
 @testset "ControlTimingSafety.jl" begin
     @testset "Automaton constructors" begin
         sysd = ss([0.5 0.1; 0.02 0.9], [0.5; 0.1], [1 -1], [0], 1)
