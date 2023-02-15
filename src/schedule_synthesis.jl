@@ -143,7 +143,7 @@ The explanation of the example is as follows
 ```
 """
 function _state_separation(l::Int64, B::Vector{Int64}; indigits=false)
-    @assert l < 2^sum(B) "l has more bits than the sum of B"
+    @boundscheck l < 2^sum(B) || throw(ArgumentError("l has more bits than the sum of B"))
     
     bits = digits(l, base=2, pad=sum(B)) |> reverse
     index_points = cumsum(B)
@@ -234,8 +234,9 @@ function _SynthesizedAutomaton(controllers::Vector{_ConstraintAutomaton}; slotsi
     Σ = filter(σ -> count_ones(σ) <= slotsize, all_actions)
 
     function T(l::Int, σ::Int)
-        @assert l < L "Illegal location"
-        @assert σ in Σ "Illegal action"
+        @boundscheck l < L || throw(ArgumentError("Illegal location"))
+        @boundscheck σ in Σ || throw(ArgumentError("Illegal action"))
+
         states = _state_separation(l, B)
         actions = _digits_b2r(σ, pad=N)
         new_locations = map((controller, l, σ) -> controller.T(l, σ), controllers, states, actions)
