@@ -4,9 +4,15 @@ using DataStructures
 """
     schedule_xghtc(constraints; slotsize=1, H=100)
 
-Generate a schedule for a set of weakly hard constraints. The schedule assumes that all tasks are synchronous and have equal periods. At most `slotsize` tasks may be scheduled in a single period. The schedule has total length `H` periods.
+Generate a schedule for a set of weakly hard constraints. The schedule assumes that all
+tasks are synchronous and have equal periods. At most `slotsize` tasks may be scheduled
+in a single period. The schedule has total length `H` periods.
     
-Shengjie Xu, Bineet Ghosh, Clara Hobbs, P.S. Thiagarajan, and Samarjit Chakraborty, "Safety-Aware Flexible Schedule Synthesis for Cyber-Physical Systems using Weakly-Hard Constraints." ASP-DAC 2023.
+Shengjie Xu, Bineet Ghosh, Clara Hobbs, P.S. Thiagarajan, and Samarjit Chakraborty, 
+"Safety-Aware Flexible Schedule Synthesis for Cyber-Physical Systems using Weakly-Hard 
+Constraints." 
+ASPDAC 2023. 
+DOI: [10.1145/3566097.3567848](https://doi.org/10.1145/3566097.3567848)
 """
 function schedule_xghtc(constraints::Vector{<:MeetAny}; slotsize::Int64=1, H::Int64=100)
     # Check if "utilization" is greater than available slot size
@@ -62,7 +68,10 @@ end
 """
     synthesize_constraints(sysd, K, z_0, d_max, maxwindow, n, t)
 
-Find all `MeetAny` weakly hard constraints with window size at most `maxwindow` that guarantees the deviation upper bound is at most `d_max`. The system is specified by [`Automaton`](@ref) `a` and initial state is `z_0`. `n` and `t` are as in [`bounded_runs_iter`](@ref).
+Find all `MeetAny` weakly hard constraints with window size at most `maxwindow` that 
+guarantees the deviation upper bound is at most `d_max`. The system is specified by 
+[`Automaton`](@ref) `a` and initial state is `z_0`. `n` and `t` are as in 
+[`bounded_runs_iter`](@ref).
 """
 function synthesize_constraints(sysd::AbstractStateSpace{<:Discrete},
     K::AbstractMatrix{Float64}, z_0::AbstractVecOrMat, d_max::Float64,
@@ -239,7 +248,8 @@ function _SynthesizedAutomaton(controllers::Vector{_ConstraintAutomaton}; slotsi
 
         states = _state_separation(l, B)
         actions = _digits_b2r(σ, pad=N)
-        new_locations = map((controller, l, σ) -> controller.T(l, σ), controllers, states, actions)
+        new_locations = map((controller, l, σ) -> controller.T(l, σ), 
+                            controllers, states, actions)
         new_location_bits = map((l, b) -> _digits_b2r(l, pad=b), new_locations, B)
         result = Iterators.flatten(new_location_bits) |> collect |> _undigit
         result
