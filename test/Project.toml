@@ -1,3 +1,5 @@
 [deps]
 ControlSystemsBase = "aaaaaaaa-a6ca-5380-bf3e-84a91bcd477e"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+RealTimeScheduling = "f1524149-62f5-490d-8249-9bfac76a7111"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
