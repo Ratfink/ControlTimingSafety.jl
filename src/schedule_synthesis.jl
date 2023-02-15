@@ -100,7 +100,7 @@ end
     _undigit(d[, base=2])
 
 Convert a list of digits to a number. Default base=2.
-```julia
+```jldoctest
 julia> _undigit([1, 0, 0])
 4
 ```
@@ -131,7 +131,7 @@ a `_SynthesizedAutomaton` and an array `B` representing the number of bits
 for each comprising `Automaton` of the `_SynthesizedAutomaton` to compute a 
 list of individual states. For example
 
-```julia
+```jldoctest
 julia> _state_separation(6, [1, 2])
 [1, 2]
 ```
