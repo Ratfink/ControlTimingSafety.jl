@@ -68,10 +68,6 @@ function synthesize_constraints(sysd::AbstractStateSpace{<:Discrete},
     K::AbstractMatrix{Float64}, z_0::AbstractVecOrMat, d_max::Float64,
     maxwindow::Int64, n::Int64, t::Int64)
 
-    # TODO: 
-    #   1) Test to make sure it works the same
-    #   2) Discuss: should additional safe constraints be included in result? 
-    #      Or only the ones that are actually checked & useful for scheduling
     safe_constraints = MeetAny[]
 
     # Do not need to go through all O(maxwindow^2) constraints,
@@ -86,7 +82,9 @@ function synthesize_constraints(sysd::AbstractStateSpace{<:Discrete},
             m = maximum(deviation(a, z_0, reachable))
             if m <= d_max
                 # All constraints with (m, window) where m >= meet are valid
-                push!(safe_constraints, constraint)
+                for i in meet:window-1
+                    push!(safe_constraints, MeetAny(i, window))
+                end
                 break
             end
             meet += 1
