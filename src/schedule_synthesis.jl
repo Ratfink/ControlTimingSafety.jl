@@ -270,7 +270,7 @@ function _SynthesizedAutomaton(controllers::Vector{_ConstraintAutomaton}; slotsi
     _SynthesizedAutomaton(N, B, L, Σ, T, L-1, Q_f)
 end
 
-function _path_to_schedule(path::Union{LinkedList{Int64} Vector{Int64}}, AS::_SynthesizedAutomaton)
+function _path_to_schedule(path::Union{LinkedList{Int64}, Vector{Int64}}, AS::_SynthesizedAutomaton)
     # Separate scheduler automaton states to individual controller states
     states = map(l -> _state_separation(l, AS.B, indigits=true), path)
 
