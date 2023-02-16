@@ -70,6 +70,14 @@ hypothesis testing, please cite:
 > RTCSA 2022.
 > DOI: [10.1109/RTCSA55878.2022.00008](https://doi.org/10.1109/RTCSA55878.2022.00008)
 
+For the [`synthesize_constraints`](@ref) function to generate the list of safe weakly-hard constraints and [`schedule_xghtc`](@ref) function to synthesize schedules from weakly-hard constraints, please cite:
+> Shengjie Xu, Bineet Ghosh, Clara Hobbs, P. S. Thiagarajan, and Samarjit 
+> Chakraborty. 
+> "Safety-Aware Flexible Schedule Synthesis for Cyber-Physical Systems Using
+> Weakly-Hard Constraints." 
+> ASPDAC 2023.
+> DOI: [10.1145/3566097.3567848](https://doi.org/10.1145/3566097.3567848)
+
 As we continue this line of work, we intend to incorporate new algorithms in
 this package, and the list of papers will be updated accordingly (along with
 specific the functions described in each).

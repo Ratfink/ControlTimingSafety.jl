@@ -1,6 +1,8 @@
 using Documenter
 using ControlTimingSafety
 
+DocMeta.setdocmeta!(ControlTimingSafety, :DocTestSetup, :(using ControlTimingSafety); recursive=true)
+
 makedocs(
     sitename = "ControlTimingSafety",
     format = Documenter.HTML(),
@@ -10,6 +12,7 @@ makedocs(
         "automata.md",
         "safety.md",
         "probablesafety.md",
+        "schedule_synthesis.md"
     ]
 )
 

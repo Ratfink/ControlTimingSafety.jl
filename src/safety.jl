@@ -13,7 +13,7 @@ function corners_from_bounds(bounds::AbstractMatrix; cycle::Bool=false, dims=axe
     ldims = length(dims)
 
     corners = cat(reshape([[c...] for c in Base.product(eachrow(bounds[dims,:])...)],
-			  2^ldims)..., dims=2)
+              2^ldims)..., dims=2)
     if cycle
         gray(x) = x ⊻ (x >> 1)
         [corners[:,gray.(0:2^ldims-1) .+ 1] corners[:,1]]
@@ -143,7 +143,7 @@ set at each of the `n`×`t+1` time steps.
 See also [`deviation`](@ref), which can be called with the result of this function to find
 the deviation from a nominal trajectory.
 """
-function bounded_runs_iter(a::Automaton, z_0::AbstractVecOrMat, n::Integer, t::Integer)
+function bounded_runs_iter(a::Automaton, z_0::AbstractVecOrMat, n::Integer, t::Integer; safety_margin::Float64=Inf)
     # Dimensions: time, augmented state, min/max
     all_bounds = Array{Float64}(undef, n*(t+1)+1, a.nz, 2)
     if isa(z_0, AbstractVector)
@@ -160,6 +160,20 @@ function bounded_runs_iter(a::Automaton, z_0::AbstractVecOrMat, n::Integer, t::I
         A[i] = Automaton(a, i)
     end
 
+    if isfinite(safety_margin)
+        nominal = ones(Int64, n*(t+1))
+        nom = Array{Float64}(undef, size(a.C, 1), 2^size(z_0,1), n*(t+1)+1)
+        corners = corners_from_bounds(z_0)
+        for (i, c) in enumerate(eachcol(corners))
+            e = evol(a, c, nominal)
+            nom[:,i,:] = a.C * e'
+        end
+        d = deviation(a, z_0, all_bounds[1:n+1,:,:], nominal_trajectory=nom[:,:,1:n+1])
+        if maximum(d) > safety_margin
+            return all_bounds[1:n+1,:,:]
+        end
+    end
+
     # Dimensions: initial location, final location, time, augmented state, min/max
     new_bounds = Array{Float64}(undef, nlocations(a), nlocations(a), n+1, a.nz, 2)
     for i in 1:t
@@ -173,6 +187,13 @@ function bounded_runs_iter(a::Automaton, z_0::AbstractVecOrMat, n::Integer, t::I
         end
         # Save the bounds
         merge_bounds!(view(all_bounds, n*i+1:n*(i+1)+1, :, :), bounds)
+
+        if isfinite(safety_margin)
+            d = deviation(a, z_0, all_bounds[n*i+2:n*(i+1)+1,:,:], nominal_trajectory=nom[:,:,n*i+2:n*(i+1)+1])
+            if maximum(d) > safety_margin
+                return all_bounds[1:n*(i+1)+1,:,:]
+            end
+        end
     end
     all_bounds
 end
