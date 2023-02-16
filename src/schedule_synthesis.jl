@@ -4,10 +4,15 @@ using DataStructures
 """
     schedule_xghtc(constraints; slotsize=1, H=100)
 
-Generate a schedule for a set of weakly hard constraints. The schedule assumes that all
-tasks are synchronous and have equal periods. At most `slotsize` tasks may be scheduled
-in a single period. The schedule has total length `H` periods.
-    
+Generate a schedule for a set of weakly hard constraints. The schedule has the type
+Vector{Vector{Int64}}, where the first dimension iterates through time slots, and the 
+second through all tasks to be scheduled in that slot. If no safe schedule can be found,
+an empty Vector{Vector{Int64}} is returned. 
+
+The schedule assumes that all tasks are synchronous and have equal periods. At most 
+`slotsize` tasks may be scheduled in a single period. The schedule has total length `H`
+periods, or it can be shorter if a cycle is found.
+
 Shengjie Xu, Bineet Ghosh, Clara Hobbs, P.S. Thiagarajan, and Samarjit Chakraborty, 
 "Safety-Aware Flexible Schedule Synthesis for Cyber-Physical Systems using Weakly-Hard 
 Constraints." 
@@ -18,7 +23,7 @@ function schedule_xghtc(constraints::Vector{<:MeetAny}; slotsize::Int64=1, H::In
     # Check if "utilization" is greater than available slot size
     utilization = sum(c -> c.meet/c.window, constraints)
     if utilization > slotsize
-        return Vector{Int64}()
+        return Vector{Vector{Int64}}()
     end
 
     # Create the scheduler automaton from individual constraints
@@ -48,7 +53,7 @@ function schedule_xghtc(constraints::Vector{<:MeetAny}; slotsize::Int64=1, H::In
 
         if isempty(next_states)
             # No more valid states -> Case (3)
-            return Vector{Int64}()
+            return Vector{Vector{Int64}}()
         end
 
         current_states = next_states
@@ -62,7 +67,7 @@ function schedule_xghtc(constraints::Vector{<:MeetAny}; slotsize::Int64=1, H::In
     end
 
     # If the outer loop ends and accepting state is not found -> Case (1)
-    return Vector{Int64}()
+    return Vector{Vector{Int64}}()
 end
 
 """
@@ -265,7 +270,7 @@ function _SynthesizedAutomaton(controllers::Vector{_ConstraintAutomaton}; slotsi
     _SynthesizedAutomaton(N, B, L, Σ, T, L-1, Q_f)
 end
 
-function _path_to_schedule(path::LinkedList{Int64}, AS::_SynthesizedAutomaton)
+function _path_to_schedule(path::Union{LinkedList{Int64} Vector{Int64}}, AS::_SynthesizedAutomaton)
     # Separate scheduler automaton states to individual controller states
     states = map(l -> _state_separation(l, AS.B, indigits=true), path)
 
