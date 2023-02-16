@@ -110,7 +110,7 @@ end
 
 Convert a list of digits to a number. Default base=2.
 ```jldoctest
-julia> _undigit([1, 0, 0])
+julia> ControlTimingSafety._undigit([1, 0, 0])
 4
 ```
 """
@@ -141,8 +141,10 @@ for each comprising `Automaton` of the `_SynthesizedAutomaton` to compute a
 list of individual states. For example
 
 ```jldoctest
-julia> _state_separation(6, [1, 2])
-[1, 2]
+julia> ControlTimingSafety._state_separation(6, [1, 2])
+2-element Vector{Int64}:
+ 1
+ 2
 ```
 The explanation of the example is as follows
 ```
