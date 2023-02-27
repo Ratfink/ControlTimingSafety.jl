@@ -9,7 +9,7 @@ as in [`deviation`](@ref).  If `estimate` is specified, stop early if this devia
 estimate is exceeded, returning the exceeding deviation.
 """
 Base.@propagate_inbounds function maximum_deviation_random(a::Automaton,
-        sampler::RealTimeScheduling.SamplerUniformMissRow, samples::Int64,
+        sampler::RealTimeScheduling.SamplerWeaklyHard, samples::Int64,
         z_0::AbstractVecOrMat{Float64};
         estimate::Union{Float64, Nothing}=nothing, metric::PreMetric=Euclidean(),
         nominal::AbstractVector{Int64}=ones(Int64,sampler.H),
@@ -91,7 +91,7 @@ Implementations Under Timing Uncertainties," RTCSA 2022.
 DOI: [10.1109/RTCSA55878.2022.00008](https://doi.org/10.1109/RTCSA55878.2022.00008)
 """
 Base.@propagate_inbounds function estimate_deviation(a::Automaton,
-        sampler::RealTimeScheduling.SamplerUniformMissRow, z_0, c::Float64, B::Float64;
+        sampler::RealTimeScheduling.SamplerWeaklyHard, z_0, c::Float64, B::Float64;
         metric::PreMetric=Euclidean(), nominal::AbstractVector{Int64}=ones(Int64,sampler.H),
         nominal_trajectory::Union{AbstractArray{Float64}, Nothing}=nothing,
         estimate::Union{Float64, Nothing}=nothing, estimate_samples::Int64=50, ϵ::Float64=0.)
