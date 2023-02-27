@@ -50,11 +50,6 @@ using RealTimeScheduling
           RealTimeScheduling.MeetAny(1, 4),
           RealTimeScheduling.MeetAny(1, 2)
      ], slotsize=2) == [
-          # 0  0  1  0  0  1  0  0  1  0  0  1  0  0  1  0
-          # 1  1  0  1  1  0  1  1  0  1  1  0  1  1  0  1
-          # 1  0  0  0  1  0  0  0  1  0  0  0  1  0  0  0
-          # 0  0  1  0  0  0  1  0  0  0  1  0  0  0  1  0
-          # 0  1  0  1  0  1  0  1  0  1  0  1  0  1  0  1
           0  1  0  0  1  0  0  1  0  0  1  0
           1  0  1  1  0  1  1  0  1  1  0  1
           1  0  0  0  1  0  0  0  1  0  0  0
