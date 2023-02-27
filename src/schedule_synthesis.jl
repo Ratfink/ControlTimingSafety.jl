@@ -271,12 +271,17 @@ end
 
 function _path_to_schedule(path::Union{LinkedList{Int64}, Vector{Int64}}, AS::_SynthesizedAutomaton)
     # Separate scheduler automaton states to individual controller states
-    states = map(l -> _state_separation(l, AS.B, indigits=true), path)
+    path = collect(path)
+    index = findfirst(isequal(path[end]), path)
+    if index == length(path) 
+        index = 1
+    end
+    states = map(l -> _state_separation(l, AS.B, indigits=true), path[index:end])
 
     # Take the last location of each controller state
-    schedule = map(states) do state
+    schedule = map(states[2:end]) do state
         map(controller_state -> controller_state[end], state)
     end |> collect
 
-    reduce(hcat, schedule[2:end])
+    reduce(hcat, schedule)
 end
