@@ -4,10 +4,11 @@ using DataStructures
 """
     schedule_xghtc(constraints; slotsize=1, H=100)
 
-Generate a schedule for a set of weakly hard constraints. The schedule has the type
-Vector{Vector{Int64}}, where the first dimension iterates through time slots, and the 
-second through all tasks to be scheduled in that slot. If no safe schedule can be found,
-an empty Vector{Vector{Int64}} is returned. 
+Generate a schedule for a set of weakly hard constraints. The schedule returned has the 
+type Matrix{Int64}, where the first dimension iterates through tasks, and the second
+through time slots. If no safe schedule can be found, an empty Matrix{Int64} is returned.
+If the schedule returned is shorter than then time horizon H, it means the schedule is
+to be repeated and the system will still be safe until H.
 
 The schedule assumes that all tasks are synchronous and have equal periods. At most 
 `slotsize` tasks may be scheduled in a single period. The schedule has total length `H`
@@ -53,7 +54,7 @@ function schedule_xghtc(constraints::Vector{<:MeetAny}; slotsize::Int64=1, H::In
 
         if isempty(next_states)
             # No more valid states -> Case (3)
-            return Vector{Vector{Int64}}()
+            return zeros(Int64, 0, 0)
         end
 
         current_states = next_states
@@ -67,7 +68,7 @@ function schedule_xghtc(constraints::Vector{<:MeetAny}; slotsize::Int64=1, H::In
     end
 
     # If the outer loop ends and accepting state is not found -> Case (1)
-    return Vector{Vector{Int64}}()
+    return zeros(Int64, 0, 0)
 end
 
 """
@@ -271,13 +272,23 @@ function _SynthesizedAutomaton(controllers::Vector{_ConstraintAutomaton}; slotsi
 end
 
 function _path_to_schedule(path::Union{LinkedList{Int64}, Vector{Int64}}, AS::_SynthesizedAutomaton)
-    # Separate scheduler automaton states to individual controller states
+    # Convert path to Vector
+    path = collect(path)
+
+    # Find if there is a cycle in path. If so, proceed with only the repeating part.
+    index = findfirst(isequal(path[end]), path)
+    if index < length(path)
+        path = path[index:end]
+    end
+
+    # Separate scheduler automaton states to individual controller states.
     states = map(l -> _state_separation(l, AS.B, indigits=true), path)
 
-    # Take the last location of each controller state
-    schedule = map(states) do state
+    # Take the last location of each controller state as the schedule for that slot.
+    schedule = map(states[2:end]) do state
         map(controller_state -> controller_state[end], state)
-    end |> collect
+    end
 
-    schedule[2:end]
+    # Concatenate the schedule into a Matrix.
+    reduce(hcat, schedule)
 end
