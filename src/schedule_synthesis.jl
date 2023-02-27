@@ -272,18 +272,23 @@ function _SynthesizedAutomaton(controllers::Vector{_ConstraintAutomaton}; slotsi
 end
 
 function _path_to_schedule(path::Union{LinkedList{Int64}, Vector{Int64}}, AS::_SynthesizedAutomaton)
-    # Separate scheduler automaton states to individual controller states
+    # Convert path to Vector
     path = collect(path)
-    index = findfirst(isequal(path[end]), path)
-    if index == length(path) 
-        index = 1
-    end
-    states = map(l -> _state_separation(l, AS.B, indigits=true), path[index:end])
 
-    # Take the last location of each controller state
+    # Find if there is a cycle in path. If so, proceed with only the repeating part.
+    index = findfirst(isequal(path[end]), path)
+    if index < length(path)
+        path = path[index:end]
+    end
+
+    # Separate scheduler automaton states to individual controller states.
+    states = map(l -> _state_separation(l, AS.B, indigits=true), path)
+
+    # Take the last location of each controller state as the schedule for that slot.
     schedule = map(states[2:end]) do state
         map(controller_state -> controller_state[end], state)
-    end |> collect
+    end
 
+    # Concatenate the schedule into a Matrix.
     reduce(hcat, schedule)
 end
