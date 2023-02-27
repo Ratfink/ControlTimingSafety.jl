@@ -4,10 +4,9 @@ using DataStructures
 """
     schedule_xghtc(constraints; slotsize=1, H=100)
 
-Generate a schedule for a set of weakly hard constraints. The schedule has the type
-Vector{Vector{Int64}}, where the first dimension iterates through time slots, and the 
-second through all tasks to be scheduled in that slot. If no safe schedule can be found,
-an empty Vector{Vector{Int64}} is returned. 
+Generate a schedule for a set of weakly hard constraints. The schedule returned has the 
+type Matrix{Int64}, where the first dimension iterates through tasks, and the second
+through time slots. If no safe schedule can be found, an empty Matrix{Int64} is returned.
 
 The schedule assumes that all tasks are synchronous and have equal periods. At most 
 `slotsize` tasks may be scheduled in a single period. The schedule has total length `H`
@@ -53,7 +52,7 @@ function schedule_xghtc(constraints::Vector{<:MeetAny}; slotsize::Int64=1, H::In
 
         if isempty(next_states)
             # No more valid states -> Case (3)
-            return Vector{Vector{Int64}}()
+            return zeros(Int64, 0, 0)
         end
 
         current_states = next_states
@@ -67,7 +66,7 @@ function schedule_xghtc(constraints::Vector{<:MeetAny}; slotsize::Int64=1, H::In
     end
 
     # If the outer loop ends and accepting state is not found -> Case (1)
-    return Vector{Vector{Int64}}()
+    return zeros(Int64, 0, 0)
 end
 
 """
@@ -279,5 +278,5 @@ function _path_to_schedule(path::Union{LinkedList{Int64}, Vector{Int64}}, AS::_S
         map(controller_state -> controller_state[end], state)
     end |> collect
 
-    schedule[2:end]
+    reduce(hcat, schedule[2:end])
 end
