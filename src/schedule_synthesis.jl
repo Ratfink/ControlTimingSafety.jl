@@ -7,6 +7,8 @@ using DataStructures
 Generate a schedule for a set of weakly hard constraints. The schedule returned has the 
 type Matrix{Int64}, where the first dimension iterates through tasks, and the second
 through time slots. If no safe schedule can be found, an empty Matrix{Int64} is returned.
+If the schedule returned is shorter than then time horizon H, it means the schedule is
+to be repeated and the system will still be safe until H.
 
 The schedule assumes that all tasks are synchronous and have equal periods. At most 
 `slotsize` tasks may be scheduled in a single period. The schedule has total length `H`
