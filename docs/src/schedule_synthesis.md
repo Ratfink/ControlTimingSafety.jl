@@ -10,5 +10,6 @@ The main functionality of this section is divided into two functions
 
 ```@docs
 synthesize_constraints
+synthesize_constraints_deviation
 schedule_xghtc
 ```

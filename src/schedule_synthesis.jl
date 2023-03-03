@@ -72,15 +72,15 @@ function schedule_xghtc(constraints::Vector{<:MeetAny}; slotsize::Int64=1, H::In
 end
 
 """
-    synthesize_constraints(sysd, K, z_0, d_max, maxwindow, n, t)
+    synthesize_constraints(sysd, K, automaton, z_0, d_max, maxwindow, n, t)
 
 Find all `MeetAny` weakly hard constraints with window size at most `maxwindow` that 
 guarantees the deviation upper bound is at most `d_max`. The system is specified by 
-[`Automaton`](@ref) `a` and initial state is `z_0`. `n` and `t` are as in 
-[`bounded_runs_iter`](@ref).
+the state-space model `sysd` and controller `K`, and constructed using the `automaton`
+function.  The parameters `z_0`, `n` and `t` are as in [`bounded_runs_iter`](@ref).
 """
 function synthesize_constraints(sysd::AbstractStateSpace{<:Discrete},
-    K::AbstractMatrix{Float64}, z_0::AbstractVecOrMat, d_max::Float64,
+    K::AbstractMatrix{Float64}, automaton::Function, z_0::AbstractVecOrMat, d_max::Float64,
     maxwindow::Int64, n::Int64, t::Int64)
 
     safe_constraints = MeetAny[]
@@ -91,7 +91,7 @@ function synthesize_constraints(sysd::AbstractStateSpace{<:Discrete},
     for window in 2:maxwindow
         while meet < window
             constraint = MeetAny(meet, window)
-            a = hold_kill(sysd, K, constraint)
+            a = automaton(sysd, K, constraint)
             # Check if the deviation bound is within the safety margin
             reachable = bounded_runs_iter(a, z_0, n, t)
             m = maximum(deviation(a, z_0, reachable))
@@ -107,6 +107,34 @@ function synthesize_constraints(sysd::AbstractStateSpace{<:Discrete},
     end
 
     safe_constraints
+end
+
+"""
+    synthesize_constraints_deviation(sysd, K, automaton, z_0, d_max, maxwindow, n, t)
+
+Find all `MeetAny` weakly hard constraints with window size at most `maxwindow` that
+guarantee the deviation upper bound is at most `d_max`, returning a vector of tuples of the
+constraint and the computed deviation bound.  All parameters are as in
+[`synthesize_constraints](@ref).
+"""
+function synthesize_constraints_deviation(sysd::AbstractStateSpace{<:Discrete},
+        K::AbstractMatrix{Float64}, automaton::Function, z_0::AbstractVecOrMat, d_max::Float64,
+        maxwindow::Int64, n::Int64, t::Int64)
+    constraints = [(MeetAny(1, 1), 0.)]
+    for meet in 1:maxwindow
+        for window in meet+1:maxwindow
+            constraint = MeetAny(meet, window)
+            a = automaton(sysd, K, constraint)
+            reachable = bounded_runs_iter(a, z_0, n, t)
+            m = maximum(deviation(a, z_0, reachable))
+            if m <= d_max
+                push!(constraints, (constraint, m))
+            else
+                break
+            end
+        end
+    end
+    constraints
 end
 
 # Helper functions
