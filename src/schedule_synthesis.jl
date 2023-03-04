@@ -137,6 +137,45 @@ function synthesize_constraints_deviation(sysd::AbstractStateSpace{<:Discrete},
     constraints
 end
 
+"""
+    prune_constraints(constraints::Vector{<:MeetAny})
+
+Prune constraints from the `Vector` `constraints` on the basis of their dominance.  Returns
+a new `Vector` containing only those constraints for which there is none weaker.
+"""
+function prune_constraints(constraints::Vector{<:MeetAny})
+    out = copy(constraints)
+    for cj in constraints
+        for ci in constraints
+            if ci != cj && cj <= ci
+                deleteat!(out, findfirst(isequal(cj), out))
+                break
+            end
+        end
+    end
+    out
+end
+
+"""
+    prune_constraints(constraints::Dict{<:MeetAny, <:Real})
+
+Prune constraints from the `Dict` `constraints` on the basis of their dominance and their
+associated deviation bounds.  Returns a new `Dict` containing only those `C => d` pairs for
+which there is no weaker constraint with deviation at most as high.
+"""
+function prune_constraints(constraints::Dict{<:MeetAny, <:Real})
+    out = copy(constraints)
+    for (cj, dj) in constraints
+        for (ci, di) in constraints
+            if ci != cj && cj <= ci && dj >= di
+                delete!(out, cj)
+                break
+            end
+        end
+    end
+    out
+end
+
 # Helper functions
 
 """
