@@ -113,22 +113,22 @@ end
     synthesize_constraints_deviation(sysd, K, automaton, z_0, d_max, maxwindow, n, t)
 
 Find all `MeetAny` weakly hard constraints with window size at most `maxwindow` that
-guarantee the deviation upper bound is at most `d_max`, returning a vector of tuples of the
-constraint and the computed deviation bound.  All parameters are as in
+guarantee the deviation upper bound is at most `d_max`, returning a `Dict` mapping
+constraints to their computed deviation bounds.  All parameters are as in
 [`synthesize_constraints](@ref).
 """
 function synthesize_constraints_deviation(sysd::AbstractStateSpace{<:Discrete},
         K::AbstractMatrix{Float64}, automaton::Function, z_0::AbstractVecOrMat, d_max::Float64,
         maxwindow::Int64, n::Int64, t::Int64)
-    constraints = [(MeetAny(1, 1), 0.)]
+    constraints = Dict(MeetAny(1, 1) => 0.)
     for meet in 1:maxwindow
         for window in meet+1:maxwindow
-            constraint = MeetAny(meet, window)
-            a = automaton(sysd, K, constraint)
+            c = MeetAny(meet, window)
+            a = automaton(sysd, K, c)
             reachable = bounded_runs_iter(a, z_0, n, t)
             m = maximum(deviation(a, z_0, reachable))
             if m <= d_max
-                push!(constraints, (constraint, m))
+                constraints[c] = m
             else
                 break
             end
