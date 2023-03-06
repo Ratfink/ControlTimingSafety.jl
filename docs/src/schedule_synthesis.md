@@ -12,4 +12,5 @@ The main functionality of this section is divided into two functions
 synthesize_constraints
 synthesize_constraints_deviation
 schedule_xghtc
+schedule_optimization
 ```

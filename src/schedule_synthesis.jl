@@ -72,6 +72,41 @@ function schedule_xghtc(constraints::Vector{<:MeetAny}; slotsize::Int64=1, H::In
 end
 
 """
+    schedule_optimization(constraint_list)
+
+Given a vector of `Dict`s mapping `PeriodicWeaklyHardTask`s to their corresponding
+deviation bounds, return a `Dict` mapping `Tuple`s of deviations to `TaskSystem`s that
+achieve those deviations.
+"""
+function schedule_optimization(constraint_list)
+    optimal = Dict()
+    ⪯(a, b) = all(a .<= b)
+    for cd in Iterators.product(constraint_list...)
+        tasks = first.(cd)
+        T = TaskSystem(collect(tasks))
+        # Rule out clearly infeasible task systems
+        if min_utilization(T) > 1
+            continue
+        end
+        prio = RealTimeScheduling.Papers.JobClassLevelScheduling.low_index_first_hold(T)
+        # If it's schedulable, add it to the optimal set
+        if RealTimeScheduling.Papers.JobClassLevelScheduling.schedulable_jcl(T, prio)
+            devs = last.(cd)
+            if isempty(optimal) || any(d -> devs ⪯ d, keys(optimal))
+                optimal[devs] = T
+            end
+        end
+    end
+    # Remove dominated values from the set
+    for (k, v) in optimal
+        if any(d -> d != k && d ⪯ k, keys(optimal))
+            delete!(optimal, k)
+        end
+    end
+    optimal
+end
+
+"""
     synthesize_constraints(sysd, K, automaton, z_0, d_max, maxwindow, n, t)
 
 Find all `MeetAny` weakly hard constraints with window size at most `maxwindow` that 
