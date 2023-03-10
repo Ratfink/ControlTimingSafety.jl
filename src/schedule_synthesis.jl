@@ -109,6 +109,39 @@ function synthesize_constraints(sysd::AbstractStateSpace{<:Discrete},
     safe_constraints
 end
 
+"""
+    estimate_constraints(sysd, K, z_0, d_max, maxwindow, c, B, H)
+
+Find all `MeetAny` weakly hard constraints with window size at most `maxwindow` that 
+guarantees the deviation upper bound is at most `d_max`. The system is specified by 
+[`Automaton`](@ref) `a` and initial state is `z_0`. This function uses SHT for 
+estimating the deviation upper bound as in [`estimate_deviation`](@ref).
+"""
+function estimate_constraints(sysd::AbstractStateSpace{<:Discrete},
+    K::AbstractMatrix{Float64}, z_0::AbstractVecOrMat, d_max::Float64, 
+    maxwindow::Int64, c::Float64, B::Float64, H::Int64)
+    safe_constraints = MeetAny[]
+    
+    meet = 1
+    for window in 2:maxwindow
+        while meet < window
+            constraint = MeetAny(meet, window)
+            a = hold_kill(sysd, K, constraint)
+            sampler = SamplerUniformMeetAny(constraint, H)
+            m = estimate_deviation(a, sampler, z_0, c, B)
+            if m <= d_max
+                for i in meet:window-1
+                    push!(safe_constraints, MeetAny(i, window))
+                end
+                break
+            end
+            meet += 1
+        end
+    end
+    
+    safe_constraints
+end
+
 # Helper functions
 
 """
