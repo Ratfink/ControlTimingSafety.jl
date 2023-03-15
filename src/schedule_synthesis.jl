@@ -20,7 +20,7 @@ Constraints."
 ASPDAC 2023. 
 DOI: [10.1145/3566097.3567848](https://doi.org/10.1145/3566097.3567848)
 """
-function schedule_xghtc(constraints::Vector{<:MeetAny}; slotsize::Int64=1, H::Int64=100)
+function schedule_xghtc(constraints::Vector{<:MeetAny}; slotsize::Int64=1, H::Int64=100, work_conserving::Bool=false)
     # Check if "utilization" is greater than available slot size
     utilization = sum(c -> c.meet/c.window, constraints)
     if utilization > slotsize
@@ -29,7 +29,7 @@ function schedule_xghtc(constraints::Vector{<:MeetAny}; slotsize::Int64=1, H::In
 
     # Create the scheduler automaton from individual constraints
     controllers = _ConstraintAutomaton.(constraints)
-    AS = _SynthesizedAutomaton(controllers, slotsize=slotsize)
+    AS = _SynthesizedAutomaton(controllers, slotsize=slotsize, work_conserving=work_conserving)
 
     # Initialize the list of current states from the initial state of
     # scheduler automaton
@@ -274,14 +274,20 @@ end
 """
 Build a scheduler automaton from a given list of controller automata
 """
-function _SynthesizedAutomaton(controllers::Vector{_ConstraintAutomaton}; slotsize::Int64=1)
+function _SynthesizedAutomaton(controllers::Vector{_ConstraintAutomaton}; slotsize::Int64=1, work_conserving::Bool=false)
     # Converting tuple to array with collect()
     N = length(controllers)
     B = map(a -> ceil(Int64, log2(a.L)), controllers) |> collect
     L = 2^sum(B)
 
     all_actions = 0:2^length(controllers)-1
-    Σ = filter(σ -> count_ones(σ) <= slotsize, all_actions)
+    if work_conserving
+        # Utilize all processing budget in each slot
+        Σ = filter(σ -> count_ones(σ) == slotsize, all_actions)
+    else
+        # Allow the processor to be underutilized
+        Σ = filter(σ -> count_ones(σ) <= slotsize, all_actions)
+    end
 
     function T(l::Int, σ::Int)
         @boundscheck l < L || throw(ArgumentError("Illegal location"))
