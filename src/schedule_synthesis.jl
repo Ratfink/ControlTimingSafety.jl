@@ -75,12 +75,11 @@ end
     schedule_optimization(constraint_list)
 
 Given a vector of `Dict`s mapping `PeriodicWeaklyHardTask`s to their corresponding
-deviation bounds, return a `Dict` mapping `Tuple`s of deviations to `TaskSystem`s that
-achieve those deviations.
+deviation bounds, return a `Dict` mapping schedulable `TaskSystem`s to `Tuple`s of the
+deviations that they achieve.
 """
 function schedule_optimization(constraint_list)
     optimal = Dict()
-    ⪯(a, b) = all(a .<= b)
     for cd in Iterators.product(constraint_list...)
         tasks = first.(cd)
         T = TaskSystem(collect(tasks))
@@ -92,15 +91,13 @@ function schedule_optimization(constraint_list)
         # If it's schedulable, add it to the optimal set
         if RealTimeScheduling.Papers.JobClassLevelScheduling.schedulable_jcl(T, prio)
             devs = last.(cd)
-            if isempty(optimal) || any(d -> devs ⪯ d, keys(optimal))
-                optimal[devs] = T
-            end
+            optimal[T] = devs
         end
     end
     # Remove dominated values from the set
-    for (k, v) in optimal
-        if any(d -> d != k && d ⪯ k, keys(optimal))
-            delete!(optimal, k)
+    for (T, devs) in optimal
+        if any(d -> d != devs && all(d .<= devs), values(optimal))
+            delete!(optimal, T)
         end
     end
     optimal
