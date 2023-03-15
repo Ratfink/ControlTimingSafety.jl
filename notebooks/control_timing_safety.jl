@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.14
+# v0.19.22
 
 #> [frontmatter]
 #> title = "ControlTimingSafety.jl Demo"
@@ -34,7 +34,7 @@ begin
     using Plots, PlutoUI, LaTeXStrings
 	using Random, Distributions
 	using Distances
-	using ControlSystems, LinearAlgebra
+	using ControlSystemsBase, LinearAlgebra
 	using Printf
 end
 
