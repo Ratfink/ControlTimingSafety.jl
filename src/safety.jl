@@ -178,7 +178,7 @@ function bounded_runs_iter(a::Automaton, z_0::AbstractVecOrMat, n::Integer, t::I
     new_bounds = Array{Float64}(undef, nlocations(a), nlocations(a), n+1, a.nz, 2)
     for i in 1:t
         # Simulate each box from previous iteration
-        for i in a.L
+        Threads.@threads for i in a.L
             new_bounds[i,:,:,:,:] = bounded_runs(A[i], bounds[i,end,:,:], n)
         end
         # Merge resulting boxes from these simulations
