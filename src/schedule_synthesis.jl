@@ -71,6 +71,25 @@ function schedule_xghtc(constraints::Vector{<:MeetAny}; slotsize::Int64=1, H::In
     return zeros(Int64, 0, 0)
 end
 
+function verify_schedule(sysd::AbstractStateSpace{<:Discrete}, 
+        K::AbstractMatrix{Float64}, z_0::AbstractVecOrMat, σ::AbstractVector{Int64})
+    a = hold_kill(sysd, K)
+
+    # Convert the actions σ to: 1=hit, 2=miss (instead of 0=miss)
+    σ = [i == 0 ? 2 : 1 for i in σ]
+
+    z = evol(a, z_0, σ)
+
+    # Convert trajectory to reachable sets by repeating the state twice for min/max
+    reachable = cat(z, z, dims=3)
+    maximum(deviation(a, z_0, reachable))
+end
+
+function schedule_to_sequence(schedule::Matrix{Int64}, task::Int64; H::Int64=100)
+    σ = schedule[task, :]
+    [repeat(σ, H ÷ length(σ)); σ[1:H % length(σ)]]
+end
+
 """
     synthesize_constraints(sysd, K, z_0, d_max, maxwindow, n, t)
 
@@ -80,8 +99,8 @@ guarantees the deviation upper bound is at most `d_max`. The system is specified
 [`bounded_runs_iter`](@ref).
 """
 function synthesize_constraints(sysd::AbstractStateSpace{<:Discrete},
-    K::AbstractMatrix{Float64}, z_0::AbstractVecOrMat, d_max::Float64,
-    maxwindow::Int64, n::Int64, t::Int64)
+        K::AbstractMatrix{Float64}, z_0::AbstractVecOrMat, d_max::Float64,
+        maxwindow::Int64, n::Int64, t::Int64)
 
     safe_constraints = MeetAny[]
 
@@ -118,8 +137,8 @@ guarantees the deviation upper bound is at most `d_max`. The system is specified
 estimating the deviation upper bound as in [`estimate_deviation`](@ref).
 """
 function estimate_constraints(sysd::AbstractStateSpace{<:Discrete},
-    K::AbstractMatrix{Float64}, z_0::AbstractVecOrMat, d_max::Float64, 
-    maxwindow::Int64, c::Float64, B::Float64, H::Int64)
+        K::AbstractMatrix{Float64}, z_0::AbstractVecOrMat, d_max::Float64, 
+        maxwindow::Int64, c::Float64, B::Float64, H::Int64)
     safe_constraints = MeetAny[]
     
     meet = 1
