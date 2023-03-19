@@ -5,8 +5,8 @@ using DataStructures
     schedule_xghtc(constraints, H; slotsize=1, work_conserving=false)
 
 Generate a schedule for a set of weakly hard constraints. The schedule returned has the 
-type Matrix{Int64}, where the first dimension iterates through tasks, and the second
-through time slots. If no safe schedule can be found, an empty Matrix{Int64} is returned.
+type Matrix{Integer}, where the first dimension iterates through tasks, and the second
+through time slots. If no safe schedule can be found, an empty Matrix{Integer} is returned.
 If the schedule returned is shorter than then time horizon H, it means the schedule is
 to be repeated and the system will still be safe until H.
 
@@ -20,11 +20,11 @@ Constraints."
 ASPDAC 2023. 
 DOI: [10.1145/3566097.3567848](https://doi.org/10.1145/3566097.3567848)
 """
-function schedule_xghtc(constraints::Vector{<:MeetAny}, H::Int64; slotsize::Int64=1, work_conserving::Bool=false)
+function schedule_xghtc(constraints::Vector{<:MeetAny}, H::Integer; slotsize::Integer=1, work_conserving::Bool=false)
     # Check if "utilization" is greater than available slot size
     utilization = sum(c -> c.meet/c.window, constraints)
     if utilization > slotsize
-        return Vector{Vector{Int64}}()
+        return Vector{Vector{Integer}}()
     end
 
     # Create the scheduler automaton from individual constraints
@@ -33,14 +33,14 @@ function schedule_xghtc(constraints::Vector{<:MeetAny}, H::Int64; slotsize::Int6
 
     # Initialize the list of current states from the initial state of
     # scheduler automaton
-    current_states = Dict{Int64, LinkedList{Int64}}(AS.l_0 => list(AS.l_0))
+    current_states = Dict{Integer, LinkedList{Integer}}(AS.l_0 => list(AS.l_0))
 
     # Traverse the automaton until 
     #   (1) the required number of steps is reached,
     #   (2) a cycle is found, or 
     #   (3) no more states are valid for exploration
     for step in 1:H
-        next_states = Dict{Int64, LinkedList{Int64}}()
+        next_states = Dict{Integer, LinkedList{Integer}}()
         for (l, path) in pairs(current_states), σ in AS.Σ
             l_new = AS.T(l, σ)
             if !AS.Q_f(l_new) || haskey(next_states, l_new)
@@ -54,7 +54,7 @@ function schedule_xghtc(constraints::Vector{<:MeetAny}, H::Int64; slotsize::Int6
 
         if isempty(next_states)
             # No more valid states -> Case (3)
-            return zeros(Int64, 0, 0)
+            return zeros(Integer, 0, 0)
         end
 
         current_states = next_states
@@ -68,11 +68,11 @@ function schedule_xghtc(constraints::Vector{<:MeetAny}, H::Int64; slotsize::Int6
     end
 
     # If the outer loop ends and accepting state is not found -> Case (1)
-    return zeros(Int64, 0, 0)
+    return zeros(Integer, 0, 0)
 end
 
 function verify_schedule(sysd::AbstractStateSpace{<:Discrete}, 
-        K::AbstractMatrix{Float64}, z_0::AbstractVecOrMat, σ::AbstractVector{Int64})
+        K::AbstractMatrix{Real}, z_0::AbstractVecOrMat, σ::AbstractVector{Integer})
     a = hold_kill(sysd, K)
 
     # Convert the actions σ to: 1=hit, 2=miss (instead of 0=miss)
@@ -85,7 +85,7 @@ function verify_schedule(sysd::AbstractStateSpace{<:Discrete},
     maximum(deviation(a, z_0, reachable))
 end
 
-function schedule_to_sequence(schedule::Matrix{Int64}, task::Int64, H::Int64)
+function schedule_to_sequence(schedule::Matrix{Integer}, task::Integer, H::Integer)
     σ = schedule[task, :]
     [repeat(σ, H ÷ length(σ)); σ[1:H % length(σ)]]
 end
@@ -99,33 +99,51 @@ guarantees the deviation upper bound is at most `d_max`. The system is specified
 and `t` in [`bounded_runs_iter`](@ref).
 """
 function synthesize_constraints(sysd::AbstractStateSpace{<:Discrete},
-        K::AbstractMatrix{Float64}, z_0::AbstractVecOrMat, d_max::Float64,
-        maxwindow::Int64, n::Int64, H::Int64; iterations::Int64=ceil(H / n))
+        K::AbstractMatrix{Real}, z_0::AbstractVecOrMat, d_max::Real,
+        maxwindow::Integer, n::Integer, H::Integer; fullresults=false)
 
-    safe_constraints = MeetAny[]
+    devs = fill(Inf, maxwindow, maxwindow)
+    safe_constraints = [MeetAny(1, 1)]
 
-    # Do not need to go through all O(maxwindow^2) constraints,
-    # see paper for optimization argument
-    meet = 1
-    for window in 2:maxwindow
-        while meet < window
-            constraint = MeetAny(meet, window)
-            a = hold_kill(sysd, K, constraint)
-            # Check if the deviation bound is within the safety margin
-            reachable = bounded_runs_iter(a, z_0, n, iterations)[1:H, :, :]
-            m = maximum(deviation(a, z_0, reachable))
-            if m <= d_max
-                # All constraints with (m, window) where m >= meet are valid
-                for i in meet:window-1
-                    push!(safe_constraints, MeetAny(i, window))
-                end
-                break
+    if fullresults
+        for window = 2:maxwindow, meet=1:window
+            devs[window, meet] = devub(meet, window, sysd, K, z_0, d_max, n, H)
+            if devs[window, meet] <= d_max && meet < window
+                push!(safe_constraints, MeetAny(meet, window))
             end
-            meet += 1
+        end
+    else
+        # Do not need to go through all O(maxwindow^2) constraints,
+        # see paper for optimization argument
+        meet = 1
+        for window in 1:maxwindow
+            while meet <= window
+                devs[window, meet] = devub(meet, window, sysd, K, z_0, d_max, n, H)
+                if devs[window, meet] <= d_max
+                    # All constraints with (m, window) where m >= meet are valid
+                    for i in meet:window-1
+                        push!(safe_constraints, MeetAny(i, window))
+                    end
+                    break
+                end
+                meet += 1
+            end
         end
     end
 
-    safe_constraints
+    safe_constraints, devs
+end
+
+function devub(meet::Integer, window::Integer, sysd::AbstractStateSpace{<:Discrete},
+        K::AbstractMatrix{Real}, z_0::AbstractVecOrMat, d_max::Real, n::Integer,
+        H::Integer; iterations=ceil(H/n))
+    if meet == window
+        return 0.
+    end
+    constraint = MeetAny(meet, window)
+    a = hold_kill(sysd, K, constraint)
+    reachable = bounded_runs_iter(a, z_0, n, iterations, safety_margin=d_max)[1:H, :, :]
+    maximum(deviation(a, z_0, reachable))
 end
 
 """
@@ -137,28 +155,33 @@ guarantees the deviation upper bound is at most `d_max`. The system is specified
 estimating the deviation upper bound as in [`estimate_deviation`](@ref).
 """
 function estimate_constraints(sysd::AbstractStateSpace{<:Discrete},
-        K::AbstractMatrix{Float64}, z_0::AbstractVecOrMat, d_max::Float64, 
-        maxwindow::Int64, c::Float64, B::Float64, H::Int64)
-    safe_constraints = MeetAny[]
+        K::AbstractMatrix{Real}, z_0::AbstractVecOrMat, d_max::Real, 
+        maxwindow::Integer, c::Real, B::Real, H::Integer)
+
+    devs = fill(Inf, maxwindow, maxwindow)
+    safe_constraints = [MeetAny(1, 1)]
     
-    meet = 1
-    for window in 2:maxwindow
-        while meet < window
+    # meet = 1
+    for window in 1:maxwindow
+        # while meet < window
+        for meet in 1:window
             constraint = MeetAny(meet, window)
             a = hold_kill(sysd, K, constraint)
             sampler = SamplerUniformMeetAny(constraint, H)
             m = estimate_deviation(a, sampler, z_0, c, B)
-            if m <= d_max
-                for i in meet:window-1
-                    push!(safe_constraints, MeetAny(i, window))
-                end
-                break
-            end
-            meet += 1
+            devs[window, meet] = round(m, sigdigits=4)
+            # if m <= d_max
+            #     for i in meet:window-1
+            #         push!(safe_constraints, MeetAny(i, window))
+            #     end
+            #     break
+            # end
+            # meet += 1
         end
     end
     
-    safe_constraints
+    # display(devs)
+    safe_constraints, devs
 end
 
 # Helper functions
@@ -172,7 +195,7 @@ julia> ControlTimingSafety._undigit([1, 0, 0])
 4
 ```
 """
-function _undigit(d::Vector{Int64}; base=2)
+function _undigit(d::Vector{Integer}; base=2)
     s = 0
     mult = 1
     for val in reverse(d)
@@ -188,7 +211,7 @@ end
 Digits **b**ase **2**, **r**everse
 A shortcut for `digits(x, base=2, pad=pad) |> reverse`
 """
-_digits_b2r(x::Int64; pad::Int64=0) = digits(x, base=2, pad=pad) |> reverse
+_digits_b2r(x::Integer; pad::Integer=0) = digits(x, base=2, pad=pad) |> reverse
 
 """
     _state_separation(l, B[, indigits=false])
@@ -200,7 +223,7 @@ list of individual states. For example
 
 ```jldoctest
 julia> ControlTimingSafety._state_separation(6, [1, 2])
-2-element Vector{Int64}:
+2-element Vector{Integer}:
  1
  2
 ```
@@ -211,7 +234,7 @@ The explanation of the example is as follows
 [[1], [1, 0]] -> [1, 2]
 ```
 """
-function _state_separation(l::Int64, B::Vector{Int64}; indigits=false)
+function _state_separation(l::Integer, B::Vector{Integer}; indigits=false)
     @boundscheck l < 2^sum(B) || throw(ArgumentError("l has more bits than the sum of B"))
     
     bits = digits(l, base=2, pad=sum(B)) |> reverse
@@ -233,13 +256,13 @@ dynamical matrix of the system.
 """
 struct _ConstraintAutomaton
     # # of locations. Legal locations are in the range 0:L-1.
-    L::Int64
+    L::Integer
     # # of actions. Legal actions are in the range 0:Σ-1.
-    Σ::Int64
+    Σ::Integer
     # Transition function. T(l,σ) is a location in 0:L-1.
     T::Function
     # Initial location in L.
-    l_0::Int64
+    l_0::Integer
     # Function that returns whether a location is final
     Q_f::Function
 end
@@ -275,17 +298,17 @@ Struct for a synthesized automaton from multiple constraint automata.
 """
 struct _SynthesizedAutomaton
     # # of comprising automata
-    N::Int64
+    N::Integer
     # List of bits for all comprising controllers
-    B::Vector{Int64}
+    B::Vector{Integer}
     # Locations. Legal locations are in the range 0:L-1.
-    L::Int64
+    L::Integer
     # List of actions.
-    Σ::Vector{Int64}
+    Σ::Vector{Integer}
     # Transition function.  T(l,σ) is a location in 0:L-1.
     T::Function
     # Initial location in L.
-    l_0::Int64
+    l_0::Integer
     # Function that returns whether a location is final.
     Q_f::Function
 end
@@ -293,10 +316,10 @@ end
 """
 Build a scheduler automaton from a given list of controller automata
 """
-function _SynthesizedAutomaton(controllers::Vector{_ConstraintAutomaton}; slotsize::Int64=1, work_conserving::Bool=false)
+function _SynthesizedAutomaton(controllers::Vector{_ConstraintAutomaton}; slotsize::Integer=1, work_conserving::Bool=false)
     # Converting tuple to array with collect()
     N = length(controllers)
-    B = map(a -> ceil(Int64, log2(a.L)), controllers) |> collect
+    B = map(a -> ceil(Integer, log2(a.L)), controllers) |> collect
     L = 2^sum(B)
 
     all_actions = 0:2^length(controllers)-1
@@ -329,7 +352,7 @@ function _SynthesizedAutomaton(controllers::Vector{_ConstraintAutomaton}; slotsi
     _SynthesizedAutomaton(N, B, L, Σ, T, L-1, Q_f)
 end
 
-function _path_to_schedule(path::Union{LinkedList{Int64}, Vector{Int64}}, AS::_SynthesizedAutomaton)
+function _path_to_schedule(path::Union{LinkedList{Integer}, Vector{Integer}}, AS::_SynthesizedAutomaton)
     # Convert path to Vector
     path = collect(path)
 
