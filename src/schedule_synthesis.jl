@@ -2,7 +2,7 @@ using RealTimeScheduling
 using DataStructures
 
 """
-    schedule_xghtc(constraints; slotsize=1, H=100)
+    schedule_xghtc(constraints, H; slotsize=1, work_conserving=false)
 
 Generate a schedule for a set of weakly hard constraints. The schedule returned has the 
 type Matrix{Int64}, where the first dimension iterates through tasks, and the second
@@ -20,7 +20,7 @@ Constraints."
 ASPDAC 2023. 
 DOI: [10.1145/3566097.3567848](https://doi.org/10.1145/3566097.3567848)
 """
-function schedule_xghtc(constraints::Vector{<:MeetAny}; slotsize::Int64=1, H::Int64=100, work_conserving::Bool=false)
+function schedule_xghtc(constraints::Vector{<:MeetAny}, H::Int64; slotsize::Int64=1, work_conserving::Bool=false)
     # Check if "utilization" is greater than available slot size
     utilization = sum(c -> c.meet/c.window, constraints)
     if utilization > slotsize
@@ -72,16 +72,16 @@ function schedule_xghtc(constraints::Vector{<:MeetAny}; slotsize::Int64=1, H::In
 end
 
 """
-    synthesize_constraints(sysd, K, z_0, d_max, maxwindow, n, t)
+    synthesize_constraints(sysd, K, z_0, d_max, maxwindow, n, H; iterations=ceil(H/n))
 
 Find all `MeetAny` weakly hard constraints with window size at most `maxwindow` that 
 guarantees the deviation upper bound is at most `d_max`. The system is specified by 
-[`Automaton`](@ref) `a` and initial state is `z_0`. `n` and `t` are as in 
-[`bounded_runs_iter`](@ref).
+[`Automaton`](@ref) `a` and initial state is `z_0`. `n` and `iterations` are as `n` 
+and `t` in [`bounded_runs_iter`](@ref).
 """
 function synthesize_constraints(sysd::AbstractStateSpace{<:Discrete},
-    K::AbstractMatrix{Float64}, z_0::AbstractVecOrMat, d_max::Float64,
-    maxwindow::Int64, n::Int64, t::Int64)
+        K::AbstractMatrix{Float64}, z_0::AbstractVecOrMat, d_max::Float64,
+        maxwindow::Int64, n::Int64, H::Int64; iterations::Int64=ceil(H / n))
 
     safe_constraints = MeetAny[]
 
@@ -93,7 +93,7 @@ function synthesize_constraints(sysd::AbstractStateSpace{<:Discrete},
             constraint = MeetAny(meet, window)
             a = hold_kill(sysd, K, constraint)
             # Check if the deviation bound is within the safety margin
-            reachable = bounded_runs_iter(a, z_0, n, t)
+            reachable = bounded_runs_iter(a, z_0, n, iterations)[1:H, :, :]
             m = maximum(deviation(a, z_0, reachable))
             if m <= d_max
                 # All constraints with (m, window) where m >= meet are valid
