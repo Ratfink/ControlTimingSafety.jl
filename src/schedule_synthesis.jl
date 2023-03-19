@@ -85,7 +85,7 @@ function verify_schedule(sysd::AbstractStateSpace{<:Discrete},
     maximum(deviation(a, z_0, reachable))
 end
 
-function schedule_to_sequence(schedule::Matrix{Int64}, task::Int64; H::Int64=100)
+function schedule_to_sequence(schedule::Matrix{Int64}, task::Int64, H::Int64)
     σ = schedule[task, :]
     [repeat(σ, H ÷ length(σ)); σ[1:H % length(σ)]]
 end
