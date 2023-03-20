@@ -104,16 +104,18 @@ function schedule_optimization(constraint_list)
 end
 
 """
-    synthesize_constraints(sysd, K, automaton, z_0, d_max, maxwindow, n, t)
+    synthesize_constraints(sysd, K, automaton, z_0, d_max, maxwindow, n, t;
+                           metric=Euclidean())
 
 Find all `MeetAny` weakly hard constraints with window size at most `maxwindow` that 
 guarantees the deviation upper bound is at most `d_max`. The system is specified by 
 the state-space model `sysd` and controller `K`, and constructed using the `automaton`
 function.  The parameters `z_0`, `n` and `t` are as in [`bounded_runs_iter`](@ref).
+The parameter `metric` is as in [`deviation`](@ref).
 """
 function synthesize_constraints(sysd::AbstractStateSpace{<:Discrete},
     K::AbstractMatrix{Float64}, automaton::Function, z_0::AbstractVecOrMat, d_max::Float64,
-    maxwindow::Int64, n::Int64, t::Int64)
+    maxwindow::Int64, n::Int64, t::Int64; metric::PreMetric=Euclidean())
 
     safe_constraints = MeetAny[]
 
@@ -126,7 +128,7 @@ function synthesize_constraints(sysd::AbstractStateSpace{<:Discrete},
             a = automaton(sysd, K, constraint)
             # Check if the deviation bound is within the safety margin
             reachable = bounded_runs_iter(a, z_0, n, t)
-            m = maximum(deviation(a, z_0, reachable))
+            m = maximum(deviation(a, z_0, reachable, metric=metric))
             if m <= d_max
                 # All constraints with (m, window) where m >= meet are valid
                 for i in meet:window-1
@@ -142,7 +144,8 @@ function synthesize_constraints(sysd::AbstractStateSpace{<:Discrete},
 end
 
 """
-    synthesize_constraints_deviation(sysd, K, automaton, z_0, d_max, maxwindow, n, t)
+    synthesize_constraints_deviation(sysd, K, automaton, z_0, d_max, maxwindow, n, t;
+                                     metric=Euclidean())
 
 Find all `MeetAny` weakly hard constraints with window size at most `maxwindow` that
 guarantee the deviation upper bound is at most `d_max`, returning a `Dict` mapping
@@ -151,14 +154,14 @@ constraints to their computed deviation bounds.  All parameters are as in
 """
 function synthesize_constraints_deviation(sysd::AbstractStateSpace{<:Discrete},
         K::AbstractMatrix{Float64}, automaton::Function, z_0::AbstractVecOrMat, d_max::Float64,
-        maxwindow::Int64, n::Int64, t::Int64)
+        maxwindow::Int64, n::Int64, t::Int64; metric::PreMetric=Euclidean())
     constraints = Dict(MeetAny(1, 1) => 0.)
     for meet in 1:maxwindow
         for window in meet+1:maxwindow
             c = MeetAny(meet, window)
             a = automaton(sysd, K, c)
             reachable = bounded_runs_iter(a, z_0, n, t)
-            m = maximum(deviation(a, z_0, reachable))
+            m = maximum(deviation(a, z_0, reachable, metric=metric))
             if m <= d_max
                 constraints[c] = m
             else
