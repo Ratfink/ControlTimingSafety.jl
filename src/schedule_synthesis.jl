@@ -24,7 +24,7 @@ function schedule_xghtc(constraints::Vector{<:MeetAny}; slotsize::Int64=1, H::In
     # Check if "utilization" is greater than available slot size
     utilization = sum(c -> c.meet/c.window, constraints)
     if utilization > slotsize
-        return Vector{Vector{Int64}}()
+        return zeros(Int64, 0, 0)
     end
 
     # Create the scheduler automaton from individual constraints
