@@ -80,17 +80,26 @@ deviations that they achieve.
 """
 function schedule_optimization(constraint_list)
     optimal = Dict()
-    for cd in Iterators.product(constraint_list...)
+    # Iterate from smallest deviation to largest
+    cl_sorted = []
+    for c in constraint_list
+        push!(cl_sorted, sort(collect(c), by=x->x[2]))
+    end
+    for cd in Iterators.product(cl_sorted...)
         tasks = first.(cd)
+        devs = last.(cd)
         T = TaskSystem(collect(tasks))
         # Rule out clearly infeasible task systems
         if min_utilization(T) > 1
             continue
         end
+        # If devs is dominated by an existing solution, don't test it
+        if any(d -> d != devs && all(d .<= devs), values(optimal))
+            continue
+        end
         prio = RealTimeScheduling.Papers.JobClassLevelScheduling.low_index_first_hold(T)
         # If it's schedulable, add it to the optimal set
         if RealTimeScheduling.Papers.JobClassLevelScheduling.schedulable_jcl(T, prio)
-            devs = last.(cd)
             optimal[T] = devs
         end
     end
