@@ -81,7 +81,7 @@ and `t` in [`bounded_runs_iter`](@ref).
 """
 function synthesize_constraints(sysd::AbstractStateSpace{<:Discrete},
         K::AbstractMatrix{Float64}, z_0::AbstractVecOrMat, d_max::Float64,
-        maxwindow::Int64, n::Int64, H::Int64; iterations::Int64=ceil(H / n))
+        maxwindow::Int64, n::Int64, H::Int64)
 
     safe_constraints = MeetAny[]
 
@@ -93,7 +93,7 @@ function synthesize_constraints(sysd::AbstractStateSpace{<:Discrete},
             constraint = MeetAny(meet, window)
             a = hold_kill(sysd, K, constraint)
             # Check if the deviation bound is within the safety margin
-            reachable = bounded_runs_iter(a, z_0, n, iterations)[1:H, :, :]
+            reachable = bounded_runs_iter(a, z_0, n, ceil(Int64, H / n))[1:H, :, :]
             m = maximum(deviation(a, z_0, reachable))
             if m <= d_max
                 # All constraints with (m, window) where m >= meet are valid
