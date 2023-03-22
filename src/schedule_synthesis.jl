@@ -136,13 +136,13 @@ end
 
 function devub(meet::Integer, window::Integer, sysd::AbstractStateSpace{<:Discrete},
         K::AbstractMatrix{<:Real}, z_0::AbstractVecOrMat, d_max::Real, n::Integer,
-        H::Integer; iterations=ceil(H/n))
+        H::Integer)
     if meet == window
         return 0.
     end
     constraint = MeetAny(meet, window)
     a = hold_kill(sysd, K, constraint)
-    reachable = bounded_runs_iter(a, z_0, n, iterations, safety_margin=d_max)[1:H, :, :]
+    reachable = bounded_runs_iter(a, z_0, n, ceil(Int64, H/n), safety_margin=d_max)[1:H, :, :]
     maximum(deviation(a, z_0, reachable))
 end
 
