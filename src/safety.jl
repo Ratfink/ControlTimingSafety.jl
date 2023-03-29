@@ -7,9 +7,6 @@ dimensions from `dims` are considered.
 """
 function corners_from_bounds(bounds::IntervalBox; cycle::Bool=false, dims=Base.oneto(length(bounds)))
     @boundscheck dims ⊆ 1:length(bounds) || throw(ArgumentError("All entries of dims must be valid indices to the first dimension of bounds"))
-    if all(isthin.(bounds))
-        return inf.(bounds)
-    end
     ldims = length(dims)
 
     corners = cat(reshape([[c...] for c in Base.product(
@@ -204,27 +201,23 @@ trajectory from the `nominal` behavior.  This can improve efficiency when callin
 See also [`bounded_runs`](@ref) and [`bounded_runs_iter`](@ref), which can be used to
 compute `reachable`.
 """
-Base.@propagate_inbounds function deviation(a::Automaton, z_0::AbstractVecOrMat{Float64},
-                   reachable::AbstractArray{Float64,3};
+Base.@propagate_inbounds function deviation(a::Automaton, z_0::IntervalBox,
+                   reachable::AbstractVector{IntervalBox};
                    metric::PreMetric=Euclidean(),
                    nominal::AbstractVector{Int64}=ones(Int64,size(reachable,1)-1),
                    nominal_trajectory::Union{AbstractArray{Float64,3}, Nothing}=nothing)
-    @boundscheck length(nominal) == size(reachable, 1) - 1 || throw(DimensionMismatch("nominal must have length size(reachable, 1) - 1"))
+    @boundscheck length(nominal) == length(reachable) - 1 || throw(DimensionMismatch("nominal must have length length(reachable) - 1"))
 
     # Dimensions: state variables, points, time
-    reachable_corners = cat([corners_from_bounds(a.C * reachable[t,:,:]) for t in axes(reachable, 1)]..., dims=3)
+    reachable_corners = cat([corners_from_bounds(a.C * reachable[t]) for t in Base.oneto(length(reachable))]..., dims=3)
 
     # Dimensions: state variables, points, time
     if nominal_trajectory === nothing
-        if z_0 isa AbstractVector{Float64}
-            nominal_trajectory = reshape(a.C * evol(a, z_0, nominal)', size(a.C, 1), 1, size(reachable, 1))
-        else
-            nominal_trajectory = Array{Float64}(undef, size(a.C, 1), 2^size(z_0,1), size(reachable, 1))
-            corners = corners_from_bounds(z_0)
-            for (i, c) in enumerate(eachcol(corners))
-                e = evol(a, c, nominal)
-                nominal_trajectory[:,i,:] = a.C * e'
-            end
+        nominal_trajectory = Array{Float64}(undef, size(a.C, 1), 2^length(z_0), length(reachable))
+        corners = corners_from_bounds(z_0)
+        for (i, c) in enumerate(eachcol(corners))
+            e = evol(a, c, nominal)
+            nominal_trajectory[:,i,:] = a.C * e'
         end
     end
 
