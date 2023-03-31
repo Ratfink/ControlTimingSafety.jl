@@ -59,13 +59,12 @@ mutable struct _StackFrame
     loc::Int64
     act::Int64
 end
+
 """
-    bounded_runs(a::Automaton, z_0, n)
+    bounded_runs(a::Automaton, z_0::IntervalBox, n)
 
 Compute reachable sets for `n` time steps for the given [`Automaton`](@ref) `a`, starting
-from the initial set given by `z_0`.
-
-`z_0` must be an `a.nz`-element vector, or an `a.nz`-length `IntervalBox`.
+from the initial set given by `z_0`.  `z_0` must have length `a.nz`.
 
 Returns `(bounds, locs)`, where `bounds` is an `nactions(a)^n`×`n+1`×`a.nz`×`2`
 `Array{Float64}` giving the bounding box for each (run, time step), and `locs` is an
@@ -121,7 +120,7 @@ function bounded_runs(a::Automaton, z_0::IntervalBox, n::Integer)
 end
 
 """
-    bounded_runs_iter(a, z_0, n, t)
+    bounded_runs_iter(a::Automaton, z_0::IntervalBox, n, t)
 
 Iterate [`bounded_runs`](@ref)`(a, z_0, n)` for `t` iterations, returning the reachable
 set at each of the `n`×`t+1` time steps.
