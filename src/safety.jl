@@ -27,9 +27,6 @@ When applied to a vector, cast it to a one-column matrix.  `cycle` and `dims` ar
 """
 corners_from_bounds(bounds::AbstractVector; cycle=nothing, dims=nothing) = reshape(bounds, length(bounds), 1)
 
-_safefloatmin(x) = (isnan(x) || isinf(x)) ? +Inf : x
-_safefloatmax(x) = (isnan(x) || isinf(x)) ? -Inf : x
-
 """
     merge_bounds(b)
 
