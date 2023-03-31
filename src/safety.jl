@@ -23,9 +23,12 @@ end
 """
     corners_from_bounds(bounds::AbstractVector; cycle=nothing, dims=nothing)
 
-When applied to a vector, cast it to a one-column matrix.  `cycle` and `dims` are ignored.
+When applied to a vector, returns a 3-dimensional `Array` whose third dimension corresponds
+to the index of the input `Vector`.
 """
-corners_from_bounds(bounds::AbstractVector; cycle=nothing, dims=nothing) = reshape(bounds, length(bounds), 1)
+function corners_from_bounds(bounds::AbstractVector; cycle::Bool=false, dims=Base.oneto(length(bounds[begin])))
+    cat(corners_from_bounds.(bounds, cycle=cycle, dims=dims)..., dims=3)
+end
 
 """
     merge_bounds(b)
@@ -205,7 +208,7 @@ Base.@propagate_inbounds function deviation(a::Automaton, z_0::IntervalBox,
     @boundscheck length(nominal) == length(reachable) - 1 || throw(DimensionMismatch("nominal must have length length(reachable) - 1"))
 
     # Dimensions: state variables, points, time
-    reachable_corners = cat([corners_from_bounds(a.C * reachable[t]) for t in Base.oneto(length(reachable))]..., dims=3)
+    reachable_corners = corners_from_bounds([a.C * reachable[t] for t in eachindex(reachable)])
 
     # Dimensions: state variables, points, time
     if nominal_trajectory === nothing
