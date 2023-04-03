@@ -16,6 +16,7 @@ RealTimeScheduling = "f1524149-62f5-490d-8249-9bfac76a7111"
 ControlSystemsBase = "1"
 DataStructures = "0.18"
 Distances = "0.10"
+IntervalArithmetic = "0.20"
 RealTimeScheduling = "0.3"
 julia = "^1.6"
 
