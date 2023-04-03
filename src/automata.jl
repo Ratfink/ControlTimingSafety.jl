@@ -456,3 +456,4 @@ augmented state space of `a`.
 """
 augment(a::Automaton, x::AbstractMatrix) = [x; zeros(a.nz - size(x, 1), size(x, 2))]
 augment(a::Automaton, x::AbstractVector) = [x; zeros(a.nz - size(x, 1))]
+augment(a::Automaton, x::IntervalBox) = IntervalBox([x...; zeros(a.nz - length(x))])
