@@ -150,7 +150,7 @@ function bounded_runs_iter(a::Automaton, z_0::IntervalBox, n::Integer, t::Intege
         corners = corners_from_bounds(z_0)
         for (i, c) in enumerate(eachcol(corners))
             e = evol(a, c, nominal)
-            nom[:,i,:] = a.C * e'
+            nom[:,i,:] = a.C * e
         end
         d = deviation(a, z_0, all_bounds[1:n+1,:,:], nominal_trajectory=nom[:,:,1:n+1])
         if maximum(d) > safety_margin
@@ -216,7 +216,7 @@ Base.@propagate_inbounds function deviation(a::Automaton, z_0::IntervalBox,
         corners = corners_from_bounds(z_0)
         for (i, c) in enumerate(eachcol(corners))
             e = evol(a, c, nominal)
-            nominal_trajectory[:,i,:] = a.C * e'
+            nominal_trajectory[:,i,:] = a.C * e
         end
     end
 
