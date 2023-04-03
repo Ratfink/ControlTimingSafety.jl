@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.14
+# v0.19.22
 
 #> [frontmatter]
 #> title = "ControlTimingSafety.jl Demo"
@@ -29,12 +29,12 @@ begin
     Pkg.instantiate()
 
 	using Revise
-	using ControlTimingSafety
+	using ControlTimingSafety, IntervalArithmetic
 	using RealTimeScheduling
     using Plots, PlutoUI, LaTeXStrings
 	using Random, Distributions
 	using Distances
-	using ControlSystems, LinearAlgebra
+	using ControlSystemsBase, LinearAlgebra
 	using Printf
 end
 
@@ -314,7 +314,7 @@ This section illustrates the Bounded Runs algorithm, used to explore all possibl
 """
 
 # ╔═╡ 0843dd0e-0091-402f-9f28-fb112232f140
-bounds = [2; 2;; 2.5; 2.5]
+bounds = IntervalBox(2..2.5, 2..2.5)
 
 # ╔═╡ ef358d22-a530-4881-a282-b850d3655427
 begin
@@ -338,7 +338,7 @@ let
 	plot(title="Reachable set for $(n_bounded_runs) time steps", xlabel=L"x_1", ylabel=L"x_2", legend=:bottomright)
 	merged = merge_bounds(points_bounded_runs)
 	for k = 0:n_bounded_runs
-		corners = corners_from_bounds(merged[begin+k,:,:], cycle=true, dims=1:2)
+		corners = corners_from_bounds(merged[begin+k], cycle=true, dims=1:2)
 		plot!(corners[1,:], corners[2,:], label=L"x[%$(k)]")
 	end
 	
@@ -390,7 +390,7 @@ end
 let
 	plot(title="Reachable set for $(time_4) time steps, $(n_4) per tree", xlabel=L"x_1", ylabel=L"x_2", legend=:bottomright)
 	for t in 1:time_4+1
-		corners = corners_from_bounds(all_bounds[t,:,:], cycle=true, dims=1:2)
+		corners = corners_from_bounds(all_bounds[t], cycle=true, dims=1:2)
 		plot!(corners[1,:], corners[2,:], label=L"x[%$(t-1)]")
 	end
 	
@@ -413,7 +413,7 @@ Using these computed reachable sets, we finally compute the maximum deviation th
 # ╔═╡ 7afec811-9ccc-4e93-9cc8-a3c6b6ee5c49
 let
 	automaton = strat_map[sim_strategy_4](sysd, K, MissRow(max_miss_4))
-	d = deviation(automaton, augment(automaton, bounds), all_bounds, dims=1:2)[1:time_4+1]
+	d = deviation(automaton, augment(automaton, bounds), all_bounds)[1:time_4+1]
 	i = argmax(d)
 	v = maximum(d)
 	
