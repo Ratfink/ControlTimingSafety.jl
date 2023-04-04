@@ -9,19 +9,18 @@ as in [`deviation`](@ref).  If `estimate` is specified, stop early if this devia
 estimate is exceeded, returning the exceeding deviation.
 """
 Base.@propagate_inbounds function maximum_deviation_random(a::Automaton,
-        sampler::RealTimeScheduling.SamplerWeaklyHard, samples::Int64,
-        z_0::AbstractVecOrMat{Float64};
+        sampler::RealTimeScheduling.SamplerWeaklyHard, samples::Int64, z_0::IntervalBox;
         estimate::Union{Float64, Nothing}=nothing, metric::PreMetric=Euclidean(),
         nominal::AbstractVector{Int64}=ones(Int64,sampler.H),
         nominal_trajectory::Union{AbstractArray{Float64}, Nothing}=nothing)
     @boundscheck length(nominal) == sampler.H || throw(DimensionMismatch("nominal must have length sampler.H"))
-    @boundscheck nominal_trajectory === nothing || size(nominal_trajectory) == (size(z_0,1), sampler.H+1) || throw(DimensionMismatch("nominal_trajectory must have size (size(z_0,1), sampler.H+1)"))
+    @boundscheck nominal_trajectory === nothing || size(nominal_trajectory) == (a.nz, sampler.H+1) || throw(DimensionMismatch("nominal_trajectory must have size (size(z_0,1), sampler.H+1)"))
     corners = unique(corners_from_bounds(z_0), dims=2)
     # Compute the nominal trajectory if not provided
     if nominal_trajectory === nothing
-        nominal_trajectory = Array{Float64}(undef, size(z_0,1), sampler.H+1, size(corners,2))
+        nominal_trajectory = Array{Float64}(undef, a.nz, sampler.H+1, size(corners,2))
         for i in axes(corners, 2)
-            nominal_trajectory[:,:,i] = evol(a, corners[:,i], nominal)'
+            nominal_trajectory[:,:,i] = evol(a, corners[:,i], nominal)
         end
     end
     Cnom = Array{Float64}(undef, size(a.C,1), sampler.H+1, size(corners,2))
@@ -33,13 +32,13 @@ Base.@propagate_inbounds function maximum_deviation_random(a::Automaton,
     s = falses(sampler.H)
     beh = zeros(Int64, sampler.H)
     if z_0 isa AbstractVector
-        z = zeros(sampler.H + 1, a.nz, 1)
+        z = zeros(a.nz, sampler.H + 1, 1)
         Cz = zeros(size(a.C, 1), sampler.H + 1, 1)
     else
-        z = zeros(sampler.H + 1, a.nz, size(corners, 2))
+        z = zeros(a.nz, sampler.H + 1, size(corners, 2))
         Cz = zeros(size(a.C, 1), sampler.H + 1, size(z, 3))
     end
-    z[1,:,:] = corners
+    z[:,1,:] = corners
     dist = zeros(Float64, length(nominal)+1)
 
     H = zeros(sampler.H+1)
@@ -54,7 +53,7 @@ Base.@propagate_inbounds function maximum_deviation_random(a::Automaton,
             # Compute its evolution
             evol!(a, view(z,:,:,i), beh)
             # Compute the output
-            mul!(view(Cz,:,:,i), a.C, view(z,:,:,i)')
+            mul!(view(Cz,:,:,i), a.C, view(z,:,:,i))
         end
         # Compute the distance between the output and nominal trajectory
         for t in eachindex(H)

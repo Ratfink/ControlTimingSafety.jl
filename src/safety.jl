@@ -1,19 +1,17 @@
 """
-    corners_from_bounds(bounds::AbstractMatrix; cycle=false, dims=axes(bounds, 1))
+    corners_from_bounds(bounds::IntervalBox; cycle=false, dims=1:length(bounds))
 
-Returns the corners of the n-dimensional interval represented by `bounds`.  If `cycle` is
-`true`, the first corner is repeated at the end, and the corners are given in Gray code
-order.  Only the dimensions from `dims` are considered.
+Returns the corners of the n-dimensional interval `bounds`.  If `cycle` is `true`, the first
+corner is repeated at the end, and the corners are given in Gray code order.  Only the
+dimensions from `dims` are considered.
 """
-function corners_from_bounds(bounds::AbstractMatrix; cycle::Bool=false, dims=axes(bounds, 1))
-    @boundscheck dims ⊆ axes(bounds, 1) || throw(ArgumentError("All entries of dims must be valid indices to the first dimension of bounds"))
-    if size(bounds, 2) == 1
-        return bounds
-    end
+function corners_from_bounds(bounds::IntervalBox; cycle::Bool=false, dims=Base.oneto(length(bounds)))
+    @boundscheck dims ⊆ 1:length(bounds) || throw(ArgumentError("All entries of dims must be valid indices to the first dimension of bounds"))
     ldims = length(dims)
 
-    corners = cat(reshape([[c...] for c in Base.product(eachrow(bounds[dims,:])...)],
-              2^ldims)..., dims=2)
+    corners = cat(reshape([[c...] for c in Base.product(
+                           eachrow([inf.(bounds[dims]) sup.(bounds[dims])])...)],
+                  2^ldims)..., dims=2)
     if cycle
         gray(x) = x ⊻ (x >> 1)
         [corners[:,gray.(0:2^ldims-1) .+ 1] corners[:,1]]
@@ -25,12 +23,12 @@ end
 """
     corners_from_bounds(bounds::AbstractVector; cycle=nothing, dims=nothing)
 
-When applied to a vector, cast it to a one-column matrix.  `cycle` and `dims` are ignored.
+When applied to a vector, returns a 3-dimensional `Array` whose third dimension corresponds
+to the index of the input `Vector`.
 """
-corners_from_bounds(bounds::AbstractVector; cycle=nothing, dims=nothing) = reshape(bounds, length(bounds), 1)
-
-_safefloatmin(x) = (isnan(x) || isinf(x)) ? +Inf : x
-_safefloatmax(x) = (isnan(x) || isinf(x)) ? -Inf : x
+function corners_from_bounds(bounds::AbstractVector; cycle::Bool=false, dims=Base.oneto(length(bounds[begin])))
+    cat(corners_from_bounds.(bounds, cycle=cycle, dims=dims)..., dims=3)
+end
 
 """
     merge_bounds(b)
@@ -40,7 +38,7 @@ Merges an array of bounding boxes `b` into one.
 See also [`merge_bounds!`](@ref).
 """
 function merge_bounds(b)
-    r = similar(b, axes(b)[2:4])
+    r = similar(b, axes(b, 1))
     merge_bounds!(r, b)
 end
 
@@ -53,24 +51,23 @@ Merges an array of bounding boxes `b` into one, storing the result in `r`.
 See also [`merge_bounds`](@ref).
 """
 function merge_bounds!(r, b)
-    minimum!(_safefloatmin, reshape(view(r, :, :, 1), 1, size(r, 1), size(r, 2)), view(b, :, :, :, 1))
-    maximum!(_safefloatmax, reshape(view(r, :, :, 2), 1, size(r, 1), size(r, 2)), view(b, :, :, :, 2))
+    for t in eachindex(r)
+        r[t] = hull(b[t,:]...)
+    end
     r
 end
 
 mutable struct _StackFrame
-    z::Matrix{Float64}
+    z::IntervalBox
     loc::Int64
     act::Int64
 end
+
 """
-    bounded_runs(a::Automaton, z_0, n)
+    bounded_runs(a::Automaton, z_0::IntervalBox, n)
 
 Compute reachable sets for `n` time steps for the given [`Automaton`](@ref) `a`, starting
-from the initial set given by `z_0`.
-
-`z_0` must be an `a.nz`-element vector, or an `a.nz`×`2` matrix whose first and second
-columns are the minimum and maximum along each dimension, respectively.
+from the initial set given by `z_0`.  `z_0` must have length `a.nz`.
 
 Returns `(bounds, locs)`, where `bounds` is an `nactions(a)^n`×`n+1`×`a.nz`×`2`
 `Array{Float64}` giving the bounding box for each (run, time step), and `locs` is an
@@ -82,23 +79,19 @@ compute reachable sets for longer time horizons.  Typically one will call
 [`deviation`](@ref) on the results of this function to determine deviation from a nominal
 trajectory.
 """
-function bounded_runs(a::Automaton, z_0::AbstractVecOrMat, n::Integer)
-    corners = corners_from_bounds(z_0)
-
+function bounded_runs(a::Automaton, z_0::IntervalBox, n::Integer)
     # Stack
-    # z gets one extra entry in the third dimension for cheap concatenation in leaf nodes
     st = Array{_StackFrame}(undef, n+1)
     for i in eachindex(st)
-        st[i] = _StackFrame(Array{Float64}(undef, size(corners,1), size(corners,2)+1), a.l_int, 1)
+        st[i] = _StackFrame(IntervalBox(∅, a.nz), a.l_int, 1)
     end
 
     # Bounding boxes for each time step, final location
-    ret = Array{Float64}(undef, a.nz, 2, n+1, nlocations(a))
-    ret[:,1,:,:] .= Inf
-    ret[:,2,:,:] .= -Inf
+    ret = Array{IntervalBox}(undef, n+1, nlocations(a))
+    ret[:,:] .= repeat([IntervalBox(∅, a.nz)], n+1, nlocations(a))
 
     # Create the stack frame for time 0
-    st[1].z[:,begin:end-1] = corners
+    st[1].z = z_0
     # Initialize the stack pointer
     sp = 1
     # While we haven't popped all the way out
@@ -107,10 +100,7 @@ function bounded_runs(a::Automaton, z_0::AbstractVecOrMat, n::Integer)
         if sp == n+1
             # Calculate min and max for this final location at each time step
             for (i, sf) in enumerate(st)
-                sf.z[:,end] = view(ret,:,1,i,st[sp].loc)
-                minimum!(view(ret,:,1:1,i,st[sp].loc), sf.z, init=false)
-                sf.z[:,end] = view(ret,:,2,i,st[sp].loc)
-                maximum!(view(ret,:,2:2,i,st[sp].loc), sf.z, init=false)
+                ret[i,st[sp].loc] = hull(ret[i, st[sp].loc], sf.z)
             end
             sp -= 1
         # If we're out of actions from this step
@@ -122,20 +112,18 @@ function bounded_runs(a::Automaton, z_0::AbstractVecOrMat, n::Integer)
             st[sp].act += 1
         # If the transition is present
         else
-            mul!(st[sp+1].z, a.Φ[a.μ[st[sp].loc, st[sp].act]], st[sp].z)
+            st[sp+1].z = a.Φ[a.μ[st[sp].loc, st[sp].act]] * st[sp].z
             st[sp+1].loc = a.T[st[sp].loc, st[sp].act]
             st[sp+1].act = 1
             st[sp].act += 1
             sp += 1
         end
     end
-    # TODO: the order of dimensions is largely an implementation detail, and since it was
-    # non-optimal before, we should ultimately remove the need for this permutedims call
-    permutedims(ret, [4, 3, 1, 2])
+    ret
 end
 
 """
-    bounded_runs_iter(a, z_0, n, t)
+    bounded_runs_iter(a::Automaton, z_0::IntervalBox, n, t)
 
 Iterate [`bounded_runs`](@ref)`(a, z_0, n)` for `t` iterations, returning the reachable
 set at each of the `n`×`t+1` time steps.
@@ -143,17 +131,13 @@ set at each of the `n`×`t+1` time steps.
 See also [`deviation`](@ref), which can be called with the result of this function to find
 the deviation from a nominal trajectory.
 """
-function bounded_runs_iter(a::Automaton, z_0::AbstractVecOrMat, n::Integer, t::Integer; safety_margin::Float64=Inf)
-    # Dimensions: time, augmented state, min/max
-    all_bounds = Array{Float64}(undef, n*(t+1)+1, a.nz, 2)
-    if isa(z_0, AbstractVector)
-        all_bounds[1,:,:] = [z_0 z_0]
-    else
-        all_bounds[1,:,:] = z_0
-    end
+function bounded_runs_iter(a::Automaton, z_0::IntervalBox, n::Integer, t::Integer; safety_margin::Float64=Inf)
+    # Dimensions: time
+    all_bounds = Array{IntervalBox}(undef, n*(t+1)+1)
+    all_bounds[1] = z_0
 
     bounds = bounded_runs(a, z_0, n)
-    merge_bounds!(view(all_bounds, 1:n+1, :, :), bounds)
+    merge_bounds!(view(all_bounds, 1:n+1), bounds)
 
     A = Array{Automaton}(undef, length(a.L))
     for i in a.L
@@ -166,7 +150,7 @@ function bounded_runs_iter(a::Automaton, z_0::AbstractVecOrMat, n::Integer, t::I
         corners = corners_from_bounds(z_0)
         for (i, c) in enumerate(eachcol(corners))
             e = evol(a, c, nominal)
-            nom[:,i,:] = a.C * e'
+            nom[:,i,:] = a.C * e
         end
         d = deviation(a, z_0, all_bounds[1:n+1,:,:], nominal_trajectory=nom[:,:,1:n+1])
         if maximum(d) > safety_margin
@@ -174,19 +158,19 @@ function bounded_runs_iter(a::Automaton, z_0::AbstractVecOrMat, n::Integer, t::I
         end
     end
 
-    # Dimensions: initial location, final location, time, augmented state, min/max
-    new_bounds = Array{Float64}(undef, nlocations(a), nlocations(a), n+1, a.nz, 2)
+    # Dimensions: initial location, final location, time
+    new_bounds = Array{IntervalBox}(undef, n+1, nlocations(a), nlocations(a))
     for i in 1:t
         # Simulate each box from previous iteration
         Threads.@threads for i in a.L
-            new_bounds[i,:,:,:,:] = bounded_runs(A[i], bounds[i,end,:,:], n)
+            new_bounds[:,:,i] = bounded_runs(A[i], bounds[end,i], n)
         end
         # Merge resulting boxes from these simulations
         for i in a.L
-            merge_bounds!(view(bounds, i, :, :, :), view(new_bounds, :, i, :, :, :))
+            merge_bounds!(view(bounds, :, i), view(new_bounds, :, i, :))
         end
         # Save the bounds
-        merge_bounds!(view(all_bounds, n*i+1:n*(i+1)+1, :, :), bounds)
+        merge_bounds!(view(all_bounds, n*i+1:n*(i+1)+1), bounds)
 
         if isfinite(safety_margin)
             d = deviation(a, z_0, all_bounds[n*i+2:n*(i+1)+1,:,:], nominal_trajectory=nom[:,:,n*i+2:n*(i+1)+1])
@@ -216,27 +200,23 @@ trajectory from the `nominal` behavior.  This can improve efficiency when callin
 See also [`bounded_runs`](@ref) and [`bounded_runs_iter`](@ref), which can be used to
 compute `reachable`.
 """
-Base.@propagate_inbounds function deviation(a::Automaton, z_0::AbstractVecOrMat{Float64},
-                   reachable::AbstractArray{Float64,3};
+Base.@propagate_inbounds function deviation(a::Automaton, z_0::IntervalBox,
+                   reachable::AbstractVector{IntervalBox};
                    metric::PreMetric=Euclidean(),
                    nominal::AbstractVector{Int64}=ones(Int64,size(reachable,1)-1),
                    nominal_trajectory::Union{AbstractArray{Float64,3}, Nothing}=nothing)
-    @boundscheck length(nominal) == size(reachable, 1) - 1 || throw(DimensionMismatch("nominal must have length size(reachable, 1) - 1"))
+    @boundscheck length(nominal) == length(reachable) - 1 || throw(DimensionMismatch("nominal must have length length(reachable) - 1"))
 
     # Dimensions: state variables, points, time
-    reachable_corners = cat([corners_from_bounds(a.C * reachable[t,:,:]) for t in axes(reachable, 1)]..., dims=3)
+    reachable_corners = corners_from_bounds([a.C * reachable[t] for t in eachindex(reachable)])
 
     # Dimensions: state variables, points, time
     if nominal_trajectory === nothing
-        if z_0 isa AbstractVector{Float64}
-            nominal_trajectory = reshape(a.C * evol(a, z_0, nominal)', size(a.C, 1), 1, size(reachable, 1))
-        else
-            nominal_trajectory = Array{Float64}(undef, size(a.C, 1), 2^size(z_0,1), size(reachable, 1))
-            corners = corners_from_bounds(z_0)
-            for (i, c) in enumerate(eachcol(corners))
-                e = evol(a, c, nominal)
-                nominal_trajectory[:,i,:] = a.C * e'
-            end
+        nominal_trajectory = Array{Float64}(undef, size(a.C, 1), 2^length(z_0), length(reachable))
+        corners = corners_from_bounds(z_0)
+        for (i, c) in enumerate(eachcol(corners))
+            e = evol(a, c, nominal)
+            nominal_trajectory[:,i,:] = a.C * e
         end
     end
 

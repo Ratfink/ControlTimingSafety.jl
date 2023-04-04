@@ -397,19 +397,27 @@ and `l` is the final location in the automaton.
 """
 function evol_final(a::Automaton, z_0::AbstractVector{Float64}, input::AbstractVector{Int64})
     @boundscheck length(z_0) == a.nz || throw(DimensionMismatch("z_0 must have length a.nz"))
-    z = zeros(length(input) + 1, a.nz)
-    z[1,:] = z_0
+    z = zeros(a.nz, length(input) + 1)
+    z[:,1] = z_0
+    evol_final!(a, z, input)
+end
+
+function evol_final(a::Automaton, z_0::IntervalBox, input::AbstractVector{Int64})
+    @boundscheck length(z_0) == a.nz || throw(DimensionMismatch("z_0 must have length a.nz"))
+    z = Vector{IntervalBox{length(z_0), eltype(inf.(z_0))}}(undef, length(input) + 1)
+    z[1] = z_0
     evol_final!(a, z, input)
 end
 
 """
     evol_final!(a, z, input)
 
-Same as [`evol_final`](@ref), but writes to the input matrix `z`, whose first row is `z_0`.
+Same as [`evol_final`](@ref), but writes to the input matrix `z`, whose first column is `z_0`.
+`z` may also be a vector of `IntervalBox`es, whose first element is `z_0`.
 """
 function evol_final!(a::Automaton, z::AbstractMatrix{Float64}, input::AbstractVector{Int64})
-    @boundscheck size(z,1) == length(input)+1 || throw(DimensionMismatch("z must have size (length(input)+1, a.nz)"))
-    @boundscheck size(z,2) == a.nz || throw(DimensionMismatch("z must have size (length(input)+1, a.nz)"))
+    @boundscheck size(z,1) == a.nz || throw(DimensionMismatch("z must have size (a.nz, length(input)+1)"))
+    @boundscheck size(z,2) == length(input)+1 || throw(DimensionMismatch("z must have size (a.nz, length(input)+1)"))
     l = a.l_int
     # For each time step and input action
     for (t, in) in enumerate(input)
@@ -418,10 +426,30 @@ function evol_final!(a::Automaton, z::AbstractMatrix{Float64}, input::AbstractVe
         # If we hit a missing transition, return the states that we reached,
         # and a missing final location to signal the problem to the caller.
         if ismissing(μ)
-            return z[1:t,:], missing
+            return z[:,1:t], missing
         end
         # Apply the dynamics
-        mul!(view(z,t+1,:), a.Φ[μ], view(z,t,:))
+        mul!(view(z,:,t+1), a.Φ[μ], view(z,:,t))
+        # Transition to the new location
+        l = a.T[l, in]
+    end
+    z, l
+end
+
+function evol_final!(a::Automaton, z::AbstractVector{IntervalBox{S, T}}, input::AbstractVector{Int64}) where {S, T}
+    @boundscheck length(z) == length(input)+1 || throw(DimensionMismatch("z must have length length(input)+1"))
+    l = a.l_int
+    # For each time step and input action
+    for (t, in) in enumerate(input)
+        # Get the dynamics matrix
+        μ = a.μ[l, in]
+        # If we hit a missing transition, return the states that we reached,
+        # and a missing final location to signal the problem to the caller.
+        if ismissing(μ)
+            return z[1:t], missing
+        end
+        # Apply the dynamics
+        z[t+1] = a.Φ[μ] * z[t]
         # Transition to the new location
         l = a.T[l, in]
     end
@@ -439,14 +467,14 @@ Returns `z`, a matrix of states over time.
 See also [`evol_final`](@ref), which additionally returns the final location in the
 automaton.
 """
-evol(a::Automaton, z_0::AbstractVector{Float64}, input::AbstractVector{Int64}) = evol_final(a, z_0, input)[1]
+evol(a::Automaton, z_0::Union{AbstractVector{Float64}, IntervalBox{S, T}}, input::AbstractVector{Int64}) where {S, T} = evol_final(a, z_0, input)[1]
 
 """
     evol!(a, z, input)
 
-Same as [`evol`](@ref), but writes to the input matrix `z`, whose first row is `z_0`.
+Same as [`evol`](@ref), but writes to the input matrix `z`, whose first column is `z_0`.
 """
-evol!(a::Automaton, z::AbstractMatrix{Float64}, input::AbstractVector{Int64}) = evol_final!(a, z, input)[1]
+evol!(a::Automaton, z::Union{AbstractMatrix{Float64}, AbstractVector{IntervalBox{S, T}}}, input::AbstractVector{Int64}) where {S, T} = evol_final!(a, z, input)[1]
 
 """
     augment(a::Automaton, x)
@@ -456,3 +484,4 @@ augmented state space of `a`.
 """
 augment(a::Automaton, x::AbstractMatrix) = [x; zeros(a.nz - size(x, 1), size(x, 2))]
 augment(a::Automaton, x::AbstractVector) = [x; zeros(a.nz - size(x, 1))]
+augment(a::Automaton, x::IntervalBox) = IntervalBox([x...; zeros(a.nz - length(x))])

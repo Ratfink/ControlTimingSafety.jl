@@ -4,6 +4,7 @@ using LinearAlgebra
 using Random
 using ControlSystemsBase
 using Distances
+using IntervalArithmetic
 
 export Automaton, nlocations, nactions
 export hold_skip_next, zero_skip_next, hold_kill, zero_kill

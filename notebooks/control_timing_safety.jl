@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.14
+# v0.19.22
 
 #> [frontmatter]
 #> title = "ControlTimingSafety.jl Demo"
@@ -29,12 +29,12 @@ begin
     Pkg.instantiate()
 
 	using Revise
-	using ControlTimingSafety
+	using ControlTimingSafety, IntervalArithmetic
 	using RealTimeScheduling
     using Plots, PlutoUI, LaTeXStrings
 	using Random, Distributions
 	using Distances
-	using ControlSystems, LinearAlgebra
+	using ControlSystemsBase, LinearAlgebra
 	using Printf
 end
 
@@ -150,7 +150,7 @@ let
 	for i = size(hit_prob, 1):-1:1
 	    seq = (rand(sim_time) .>= hit_prob[i]) .+ 1
 		z = evol(automaton, z_0, seq)
-	    plot!(z[:,1], z[:,2], label=L"P(\mathrm{hit}) = %$(hit_prob[i])", linecolor=line_colors[i])
+	    plot!(z[1,:], z[2,:], label=L"P(\mathrm{hit}) = %$(hit_prob[i])", linecolor=line_colors[i])
 	end
 	plot!()
 end
@@ -208,7 +208,7 @@ trj_2 = let
 	# Compute random trajectories
 	sp = SamplerUniformMissRow(MissRow(maxmiss_2), H_2)
 	seq = ones(Int64, H_2)
-	trj = Array{Float64}(undef, n_samples_2, H_2+1, size(T.Φ[1], 1))
+	trj = Array{Float64}(undef, n_samples_2, size(T.Φ[1], 1), H_2+1)
 	max_possible = (H_2 / (maxmiss_2 + 1)) * maxmiss_2 + H_2 % (maxmiss_2 + 1)
 	for i = axes(trj, 1)
 		accepted = false
@@ -232,7 +232,7 @@ We next compute the distance between each point of each random trajectory and th
 dist_2 = let	
 	dist = Array{Float64}(undef, n_samples_2, H_2+1)
 	for i in axes(trj_2, 1)
-		dist[i,:] = colwise(Euclidean(), trj_2[i,:,1:2]', nominal_2[:,1:2]')
+		dist[i,:] = colwise(Euclidean(), trj_2[i,1:2,:], nominal_2[1:2,:])
 	end
 	dist
 end
@@ -256,8 +256,8 @@ let
 	pipe_radius = sort(dev_2, dims=1)[end-1] - 0.01
 	circ_x = cos.(θ) * pipe_radius
 	circ_y = sin.(θ) * pipe_radius
-	for i in axes(nominal_2, 1)
-		plot!(circ_x .+ nominal_2[i,1], circ_y .+ nominal_2[i,2], repeat([i,], size(θ,1)), label=(i == 1) ? "Safety pipe" : "", seriestype=[:shape,], c=:lightblue, linecolor=:lightblue)
+	for i in axes(nominal_2, 2)
+		plot!(circ_x .+ nominal_2[1,i], circ_y .+ nominal_2[2,i], repeat([i,], size(θ,1)), label=(i == 1) ? "Safety pipe" : "", seriestype=[:shape,], c=:lightblue, linecolor=:lightblue)
 	end
 
 	# Plot random trajectories
@@ -265,7 +265,7 @@ let
 	# Plot the good trajectories first
 	for i = axes(trj_2, 1)
 		if dev_2[i] < pipe_radius
-			plot!(trj_2[i,:,1], trj_2[i,:,2], 1:H_2+1, label=(!label_good) ? "Random" : "", color=:green, opacity=10/n_samples_2)
+			plot!(trj_2[i,1,:], trj_2[i,2,:], 1:H_2+1, label=(!label_good) ? "Random" : "", color=:green, opacity=10/n_samples_2)
 			label_good = true
 		end
 	end
@@ -277,14 +277,14 @@ let
 			t_viol = argmax(dist_2[i,:], dims=1)
 			#label_bad || plot!(cos.(θ) * pipe_radius .+ nominal_2[t_viol,1], sin.(θ) * pipe_radius .+ nominal_2[t_viol,2], repeat([t_viol,], size(θ,1)), label="Radius violated", style=:dot, linecolor=:gray)
 			crosses = [(d >= pipe_radius) ? 1 : 0 for d in dist_2[i,:]]
-			plot!(trj_2[i,:,1], trj_2[i,:,2], 1:H_2+1, label=(!label_bad) ? "Violation" : "", color=:red, markershape=:x, markeralpha=crosses)
+			plot!(trj_2[i,1,:], trj_2[i,2,:], 1:H_2+1, label=(!label_bad) ? "Violation" : "", color=:red, markershape=:x, markeralpha=crosses)
 			nom_crosses .+= crosses
 			label_bad = true
 		end
 	end
 
 	# Finally, plot the nominal trajectory on top of everything else
-	plot!(nominal_2[:,1], nominal_2[:,2], 1:H_2+1, label="Nominal", color=:black, linewidth=3, marker=:x, markeralpha=nom_crosses)
+	plot!(nominal_2[1,:], nominal_2[2,:], 1:H_2+1, label="Nominal", color=:black, linewidth=3, marker=:x, markeralpha=nom_crosses)
 end
   ╠═╡ =#
 
@@ -314,7 +314,7 @@ This section illustrates the Bounded Runs algorithm, used to explore all possibl
 """
 
 # ╔═╡ 0843dd0e-0091-402f-9f28-fb112232f140
-bounds = [2; 2;; 2.5; 2.5]
+bounds = IntervalBox(2..2.5, 2..2.5)
 
 # ╔═╡ ef358d22-a530-4881-a282-b850d3655427
 begin
@@ -338,7 +338,7 @@ let
 	plot(title="Reachable set for $(n_bounded_runs) time steps", xlabel=L"x_1", ylabel=L"x_2", legend=:bottomright)
 	merged = merge_bounds(points_bounded_runs)
 	for k = 0:n_bounded_runs
-		corners = corners_from_bounds(merged[begin+k,:,:], cycle=true, dims=1:2)
+		corners = corners_from_bounds(merged[begin+k], cycle=true, dims=1:2)
 		plot!(corners[1,:], corners[2,:], label=L"x[%$(k)]")
 	end
 	
@@ -347,7 +347,7 @@ let
 		corners = augment(hsn, corners_from_bounds(bounds, dims=[1,2]))
 		for c in eachcol(corners)
 	    	x = evol(hsn, c, ones(Int64, n_bounded_runs))
-			plot!(x[:,1], x[:,2], label="Sample", linecolor=:blue, marker=:circle)
+			plot!(x[1,:], x[2,:], label="Sample", linecolor=:blue, marker=:circle)
 		end
 	end
 	plot!()
@@ -390,7 +390,7 @@ end
 let
 	plot(title="Reachable set for $(time_4) time steps, $(n_4) per tree", xlabel=L"x_1", ylabel=L"x_2", legend=:bottomright)
 	for t in 1:time_4+1
-		corners = corners_from_bounds(all_bounds[t,:,:], cycle=true, dims=1:2)
+		corners = corners_from_bounds(all_bounds[t], cycle=true, dims=1:2)
 		plot!(corners[1,:], corners[2,:], label=L"x[%$(t-1)]")
 	end
 	
@@ -399,7 +399,7 @@ let
 		corners = augment(hsn, corners_from_bounds(bounds, dims=[1,2]))
 		for c in eachcol(corners)
 	    	x = evol(hsn, c, ones(Int64, n_4*t_4))
-			plot!(x[:,1], x[:,2], label="Sample", linecolor=:blue, marker=:circle)
+			plot!(x[1,:], x[2,:], label="Sample", linecolor=:blue, marker=:circle)
 		end
 	end
 	plot!(legend=false)
@@ -413,7 +413,7 @@ Using these computed reachable sets, we finally compute the maximum deviation th
 # ╔═╡ 7afec811-9ccc-4e93-9cc8-a3c6b6ee5c49
 let
 	automaton = strat_map[sim_strategy_4](sysd, K, MissRow(max_miss_4))
-	d = deviation(automaton, augment(automaton, bounds), all_bounds, dims=1:2)[1:time_4+1]
+	d = deviation(automaton, augment(automaton, bounds), all_bounds)[1:time_4+1]
 	i = argmax(d)
 	v = maximum(d)
 	

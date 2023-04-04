@@ -80,7 +80,7 @@ guarantees the deviation upper bound is at most `d_max`. The system is specified
 [`bounded_runs_iter`](@ref).
 """
 function synthesize_constraints(sysd::AbstractStateSpace{<:Discrete},
-    K::AbstractMatrix{Float64}, z_0::AbstractVecOrMat, d_max::Float64,
+    K::AbstractMatrix{Float64}, z_0::IntervalBox, d_max::Float64,
     maxwindow::Int64, n::Int64, t::Int64)
 
     safe_constraints = MeetAny[]
