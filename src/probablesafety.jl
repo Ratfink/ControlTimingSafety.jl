@@ -99,7 +99,7 @@ Base.@propagate_inbounds function estimate_deviation(a::Automaton,
     @boundscheck nominal_trajectory === nothing || size(nominal_trajectory) == (size(z_0,1), sampler.H+1) || throw(DimensionMismatch("nominal_trajectory must have size (size(z_0,1), sampler.H+1)"))
 
     # Compute the number of samples to draw for the required confidence and Bayes factor
-    K = ceil(Int64, -log(c, c/(1-c)*B+1))
+    K = ceil(Int64, -log(c, B+1))
     if estimate === nothing
         # Take our initial estimate from a small random sample
         estimate = maximum_deviation_random(a, sampler, estimate_samples, z_0, metric=metric, nominal=nominal, nominal_trajectory=nominal_trajectory)
