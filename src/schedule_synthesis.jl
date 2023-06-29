@@ -25,7 +25,7 @@ function schedule_xghtc(constraints::Vector{<:MeetAny}, H::Integer;
     # Check if "utilization" is greater than available slot size
     utilization = sum(c -> c.meet/c.window, constraints)
     if utilization > slotsize
-        return Vector{Vector{<:Integer}}()
+        return Vector{Vector{Int64}}()
     end
 
     # Create the scheduler automaton from individual constraints
@@ -34,14 +34,14 @@ function schedule_xghtc(constraints::Vector{<:MeetAny}, H::Integer;
 
     # Initialize the list of current states from the initial state of
     # scheduler automaton
-    current_states = Dict{Integer, LinkedList{<:Integer}}(AS.l_0 => list(AS.l_0))
+    current_states = Dict{Int64, LinkedList{Int64}}(AS.l_0 => list(AS.l_0))
 
     # Traverse the automaton until 
     #   (1) the required number of steps is reached,
     #   (2) a cycle is found, or 
     #   (3) no more states are valid for exploration
     for step in 1:H
-        next_states = Dict{Integer, LinkedList{<:Integer}}()
+        next_states = Dict{Int64, LinkedList{Int64}}()
         for (l, path) in pairs(current_states), σ in AS.Σ
             l_new = AS.T(l, σ)
             if !AS.Q_f(l_new) || haskey(next_states, l_new)
@@ -55,7 +55,7 @@ function schedule_xghtc(constraints::Vector{<:MeetAny}, H::Integer;
 
         if isempty(next_states)
             # No more valid states -> Case (3)
-            return zeros(Integer, 0, 0)
+            return zeros(Int64, 0, 0)
         end
 
         current_states = next_states
@@ -69,7 +69,7 @@ function schedule_xghtc(constraints::Vector{<:MeetAny}, H::Integer;
     end
 
     # If the outer loop ends and accepting state is not found -> Case (1)
-    return zeros(Integer, 0, 0)
+    return zeros(Int64, 0, 0)
 end
 
 function schedule_xghtc(allconstraints::Vector{<:Vector{<:MeetAny}}, H::Integer;
@@ -82,7 +82,7 @@ function schedule_xghtc(allconstraints::Vector{<:Vector{<:MeetAny}}, H::Integer;
             return sch
         end
     end
-    return zeros(Integer, 0, 0)
+    return zeros(Int64, 0, 0)
 end
 
 function verify_schedule(sysd::AbstractStateSpace{<:Discrete}, 
@@ -271,13 +271,13 @@ dynamical matrix of the system.
 """
 struct _ConstraintAutomaton
     # # of locations. Legal locations are in the range 0:L-1.
-    L::Integer
+    L::Int64
     # # of actions. Legal actions are in the range 0:Σ-1.
-    Σ::Integer
+    Σ::Int64
     # Transition function. T(l,σ) is a location in 0:L-1.
     T::Function
     # Initial location in L.
-    l_0::Integer
+    l_0::Int64
     # Function that returns whether a location is final
     Q_f::Function
 end
@@ -313,17 +313,17 @@ Struct for a synthesized automaton from multiple constraint automata.
 """
 struct _SynthesizedAutomaton
     # # of comprising automata
-    N::Integer
+    N::Int64
     # List of bits for all comprising controllers
-    B::Vector{<:Integer}
+    B::Vector{Int64}
     # Locations. Legal locations are in the range 0:L-1.
-    L::Integer
+    L::Int64
     # List of actions.
-    Σ::Vector{<:Integer}
+    Σ::Vector{Int64}
     # Transition function.  T(l,σ) is a location in 0:L-1.
     T::Function
     # Initial location in L.
-    l_0::Integer
+    l_0::Int64
     # Function that returns whether a location is final.
     Q_f::Function
 end
@@ -334,7 +334,7 @@ Build a scheduler automaton from a given list of controller automata
 function _SynthesizedAutomaton(controllers::Vector{_ConstraintAutomaton}; slotsize::Integer=1, work_conserving::Bool=false)
     # Converting tuple to array with collect()
     N = length(controllers)
-    B = map(a -> ceil(Integer, log2(a.L)), controllers) |> collect
+    B = map(a -> ceil(Int64, log2(a.L)), controllers) |> collect
     L = 2^sum(B)
 
     all_actions = 0:2^length(controllers)-1
