@@ -20,7 +20,8 @@ Constraints."
 ASPDAC 2023. 
 DOI: [10.1145/3566097.3567848](https://doi.org/10.1145/3566097.3567848)
 """
-function schedule_xghtc(constraints::Vector{<:MeetAny}, H::Integer; slotsize::Integer=1, work_conserving::Bool=false)
+function schedule_xghtc(constraints::Vector{<:MeetAny}, H::Integer;
+        slotsize::Integer=1, work_conserving::Bool=false)
     # Check if "utilization" is greater than available slot size
     utilization = sum(c -> c.meet/c.window, constraints)
     if utilization > slotsize
@@ -71,13 +72,25 @@ function schedule_xghtc(constraints::Vector{<:MeetAny}, H::Integer; slotsize::In
     return zeros(Integer, 0, 0)
 end
 
+function schedule_xghtc(allconstraints::Vector{<:Vector{<:MeetAny}}, H::Integer;
+        slotsize::Integer=1, work_conserving::Bool=false)
+    for constraints in Iterators.product(allconstraints...)
+        sch = schedule_xghtc(collect(constraints), H, 
+            slotsize=slotsize, work_conserving=work_conserving)
+        if length(sch) > 0
+            println(constraints)
+            return sch
+        end
+    end
+    return zeros(Integer, 0, 0)
+end
+
 function verify_schedule(sysd::AbstractStateSpace{<:Discrete}, 
         K::AbstractMatrix{<:Real}, z_0::AbstractVecOrMat, σ::AbstractVector{<:Integer})
     a = hold_kill(sysd, K)
 
     # Convert the actions σ to: 1=hit, 2=miss (instead of 0=miss)
     σ = [i == 0 ? 2 : 1 for i in σ]
-
     z = evol(a, z_0, σ)
 
     # Convert trajectory to reachable sets by repeating the state twice for min/max
@@ -106,7 +119,7 @@ function synthesize_constraints(sysd::AbstractStateSpace{<:Discrete},
     safe_constraints = [MeetAny(1, 1)]
 
     if fullresults
-        for window = 2:maxwindow, meet=1:window
+        for window = 1:maxwindow, meet=1:window
             devs[window, meet] = devub(meet, window, sysd, K, z_0, d_max, n, H)
             if devs[window, meet] <= d_max && meet < window
                 push!(safe_constraints, MeetAny(meet, window))
@@ -144,6 +157,7 @@ function devub(meet::Integer, window::Integer, sysd::AbstractStateSpace{<:Discre
     a = hold_kill(sysd, K, constraint)
     reachable = bounded_runs_iter(a, z_0, n, ceil(Int64, H/n), safety_margin=d_max)
     reachable = reachable[1:min(H, size(reachable, 1)), :, :]
+    # @info "Data" meet window size(reachable, 1) argmax(deviation(a, z_0, reachable))
     maximum(deviation(a, z_0, reachable))
 end
 
