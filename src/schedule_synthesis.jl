@@ -2,7 +2,7 @@ using RealTimeScheduling
 using DataStructures
 
 """
-    schedule_xghtc(constraints, H; slotsize=1, work_conserving=false)
+    schedule_xghtc(constraints; slotsize=1, H=100, work_conserving=false)
 
 Generate a schedule for a set of weakly hard constraints. The schedule returned has the 
 type Matrix{<:Integer}, where the first dimension iterates through tasks, and the second
@@ -104,12 +104,12 @@ function schedule_to_sequence(schedule::Matrix{<:Integer}, task::Integer, H::Int
 end
 
 """
-    synthesize_constraints(sysd, K, z_0, d_max, maxwindow, n, H; iterations=ceil(H/n))
+    synthesize_constraints(sysd, K, z_0, d_max, maxwindow, n, t)
 
 Find all `MeetAny` weakly hard constraints with window size at most `maxwindow` that 
 guarantees the deviation upper bound is at most `d_max`. The system is specified by 
-[`Automaton`](@ref) `a` and initial state is `z_0`. `n` and `iterations` are as `n` 
-and `t` in [`bounded_runs_iter`](@ref).
+[`Automaton`](@ref) `a` and initial state is `z_0`. `n` and `t` are as in 
+[`bounded_runs_iter`](@ref).
 """
 function synthesize_constraints(sysd::AbstractStateSpace{<:Discrete},
         K::AbstractMatrix{<:Real}, z_0::AbstractVecOrMat, d_max::Real,
