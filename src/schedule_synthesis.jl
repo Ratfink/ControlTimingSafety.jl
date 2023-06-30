@@ -2,7 +2,7 @@ using RealTimeScheduling
 using DataStructures
 
 """
-    schedule_xghtc(constraints; slotsize=1, H=100, work_conserving=false)
+    schedule_xghtc(constraints, H; slotsize=1, work_conserving=false)
 
 Generate a schedule for a set of weakly hard constraints. The schedule returned has the 
 type Matrix{<:Integer}, where the first dimension iterates through tasks, and the second
@@ -72,6 +72,12 @@ function schedule_xghtc(constraints::Vector{<:MeetAny}, H::Integer;
     return zeros(Int64, 0, 0)
 end
 
+"""
+    schedule_xghtc(allconstraints, H; slotsize=1, work_conserving=false)
+
+Given a list of safe constraints for each system, synthesize a schedule using one safe 
+constraint from each list. The first successful synthesis result is returned.
+"""
 function schedule_xghtc(allconstraints::Vector{<:Vector{<:MeetAny}}, H::Integer;
         slotsize::Integer=1, work_conserving::Bool=false)
     for constraints in Iterators.product(allconstraints...)
@@ -85,6 +91,13 @@ function schedule_xghtc(allconstraints::Vector{<:Vector{<:MeetAny}}, H::Integer;
     return zeros(Int64, 0, 0)
 end
 
+"""
+    verify_schedule(sysd, K, z_0, σ)
+
+Given a discrete state-space model, feedback gain, the initial state, and a sequence of
+deadline hits and misses, returns the maximum deviaiton between the resulting trajectory
+and the nominal trajectory for that system where all deadlines are met.
+"""
 function verify_schedule(sysd::AbstractStateSpace{<:Discrete}, 
         K::AbstractMatrix{<:Real}, z_0::AbstractVecOrMat, σ::AbstractVector{<:Integer})
     a = hold_kill(sysd, K)
@@ -98,6 +111,13 @@ function verify_schedule(sysd::AbstractStateSpace{<:Discrete},
     maximum(deviation(a, z_0, reachable))
 end
 
+"""
+    schedule_to_sequence(schedule, task, H)
+
+Given a schedule in the matrix form, the position of the task in the schedule and the desired
+length of the sequence, returns a sequence of 0s and 1s of length H representing the deadline
+hits and misses for that task under the given schedule.
+"""
 function schedule_to_sequence(schedule::Matrix{<:Integer}, task::Integer, H::Integer)
     σ = schedule[task, :]
     [repeat(σ, H ÷ length(σ)); σ[1:H % length(σ)]]
@@ -147,6 +167,12 @@ function synthesize_constraints(sysd::AbstractStateSpace{<:Discrete},
     safe_constraints, devs
 end
 
+"""
+    devub(meet, window, sysd, K, z_0, d_max, n, H)
+
+Compute the deviation upper bound for a given system under the weakly hard constraint 
+(meet, window), over a specified time horizon.
+"""
 function devub(meet::Integer, window::Integer, sysd::AbstractStateSpace{<:Discrete},
         K::AbstractMatrix{<:Real}, z_0::AbstractVecOrMat, d_max::Real, n::Integer,
         H::Integer)
@@ -185,13 +211,13 @@ function estimate_constraints(sysd::AbstractStateSpace{<:Discrete},
             sampler = SamplerUniformMeetAny(constraint, H)
             m = estimate_deviation(a, sampler, z_0, c, B)
             devs[window, meet] = round(m, sigdigits=4)
-            # if m <= d_max
-            #     for i in meet:window-1
-            #         push!(safe_constraints, MeetAny(i, window))
-            #     end
-            #     break
-            # end
-            # meet += 1
+            if m <= d_max
+                for i in meet:window-1
+                    push!(safe_constraints, MeetAny(i, window))
+                end
+                break
+            end
+            meet += 1
         end
     end
     
