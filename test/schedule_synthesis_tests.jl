@@ -36,6 +36,7 @@ using RealTimeScheduling
      end
 
      @test synthesize_constraints(sysd, K, repeat([10.0], 3), 5.5, 6, 10, 10) == [
+          RealTimeScheduling.MeetAny(1, 1),
           RealTimeScheduling.MeetAny(1, 2),
           RealTimeScheduling.MeetAny(2, 3),
           RealTimeScheduling.MeetAny(3, 4),

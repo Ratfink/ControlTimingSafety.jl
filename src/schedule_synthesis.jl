@@ -164,7 +164,7 @@ function synthesize_constraints(sysd::AbstractStateSpace{<:Discrete},
         end
     end
 
-    safe_constraints, devs
+    safe_constraints
 end
 
 """
@@ -197,32 +197,46 @@ estimating the deviation upper bound as in [`estimate_deviation`](@ref).
 """
 function estimate_constraints(sysd::AbstractStateSpace{<:Discrete},
         K::AbstractMatrix{<:Real}, z_0::AbstractVecOrMat, d_max::Real, 
-        maxwindow::Integer, c::Real, B::Real, H::Integer)
+        maxwindow::Integer, c::Real, B::Real, H::Integer; fullresults=false)
 
     devs = fill(Inf, maxwindow, maxwindow)
     safe_constraints = [MeetAny(1, 1)]
     
-    # meet = 1
-    for window in 1:maxwindow
-        # while meet < window
-        for meet in 1:window
-            constraint = MeetAny(meet, window)
-            a = hold_kill(sysd, K, constraint)
-            sampler = SamplerUniformMeetAny(constraint, H)
-            m = estimate_deviation(a, sampler, z_0, c, B)
-            devs[window, meet] = round(m, sigdigits=4)
-            if m <= d_max
-                for i in meet:window-1
-                    push!(safe_constraints, MeetAny(i, window))
-                end
-                break
+    if fullresults
+        for window = 1:maxwindow, meet=1:window
+            devs[window, meet] = devest(meet, window, sysd, K, z_0, c, B, H)
+            if devs[window, meet] <= d_max && meet < window
+                push!(safe_constraints, MeetAny(meet, window))
             end
-            meet += 1
+        end
+    else
+        meet = 1
+        for window in 1:maxwindow
+            while meet <= window
+                devs[window, meet] = devest(meet, window, sysd, K, z_0, c, B, H)
+                if devs[window, meet] <= d_max
+                    for i in meet:window-1
+                        push!(safe_constraints, MeetAny(i, window))
+                    end
+                    break
+                end
+                meet += 1
+            end
         end
     end
     
-    # display(devs)
-    safe_constraints, devs
+    safe_constraints
+end
+
+function devest(meet::Integer, window::Integer, sysd::AbstractStateSpace{<:Discrete},
+        K::AbstractMatrix{<:Real}, z_0::AbstractVecOrMat, c::Real, B::Real, H::Integer)
+    if meet == window
+        return 0.
+    end
+    constraint = MeetAny(meet, window)
+    a = hold_kill(sysd, K, constraint)
+    sampler = SamplerUniformMeetAny(constraint, H)
+    estimate_deviation(a, sampler, z_0, c, B)
 end
 
 # Helper functions
