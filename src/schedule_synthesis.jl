@@ -5,8 +5,8 @@ using DataStructures
     schedule_xghtc(constraints, H; slotsize=1, work_conserving=false)
 
 Generate a schedule for a set of weakly hard constraints. The schedule returned has the 
-type Matrix{<:Int64}, where the first dimension iterates through tasks, and the second
-through time slots. If no safe schedule can be found, an empty Matrix{<:Int64} is returned.
+type Matrix{Int64}, where the first dimension iterates through tasks, and the second
+through time slots. If no safe schedule can be found, an empty Matrix{Int64} is returned.
 If the schedule returned is shorter than then time horizon H, it means the schedule is
 to be repeated and the system will still be safe until H.
 
@@ -278,7 +278,7 @@ list of individual states. For example
 
 ```jldoctest
 julia> ControlTimingSafety._state_separation(6, [1, 2])
-2-element Vector{<:Int64}:
+2-element Vector{Int64}:
  1
  2
 ```
