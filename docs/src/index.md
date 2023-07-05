@@ -31,11 +31,12 @@ zs = zero_skip_next(sys, K, max_misses)
 
 To run the Bounded Runs Iteration algorithm for this automaton, first create
 the initial set, then run the algorithm for a given per-iteration run
-length `n` and number of iterations `t`:
+length `n` to produce the reachable set of length `H`. The number of iterations
+is the smallest integer `t` such that `n`×`t`≥`H`.
 
 ```julia
 augbounds = augment(automaton, bounds)
-all_bounds = bounded_runs_iter(automaton, augbounds, n, t)
+all_bounds = bounded_runs_iter(automaton, augbounds, n, H)
 ```
 
 The deviation at each time step can then be computed thusly:
