@@ -197,7 +197,7 @@ function bounded_runs_iter(a::Automaton, z_0::AbstractVecOrMat, n::Integer, H::I
             end
         end
     end
-    all_bounds[1:H+1]
+    all_bounds[1:H+1,:,:]
 end
 
 """
