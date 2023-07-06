@@ -164,7 +164,7 @@ function synthesize_constraints(sysd::AbstractStateSpace{<:Discrete},
         end
     end
 
-    safe_constraints
+    safe_constraints, devs
 end
 
 """
@@ -225,7 +225,7 @@ function estimate_constraints(sysd::AbstractStateSpace{<:Discrete},
         end
     end
     
-    safe_constraints
+    safe_constraints, devs
 end
 
 """
