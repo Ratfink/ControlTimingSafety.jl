@@ -19,6 +19,8 @@ export maximum_deviation_random, estimate_deviation
 include("probablesafety.jl")
 
 export schedule_xghtc, synthesize_constraints
+export estimate_constraints, verify_schedule, schedule_to_sequence
+export devub, devest
 include("schedule_synthesis.jl")
 
 end

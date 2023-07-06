@@ -2,7 +2,7 @@ using RealTimeScheduling
 using DataStructures
 
 """
-    schedule_xghtc(constraints; slotsize=1, H=100, work_conserving=false)
+    schedule_xghtc(constraints, H; slotsize=1, work_conserving=false)
 
 Generate a schedule for a set of weakly hard constraints. The schedule returned has the 
 type Matrix{Int64}, where the first dimension iterates through tasks, and the second
@@ -20,7 +20,8 @@ Constraints."
 ASPDAC 2023. 
 DOI: [10.1145/3566097.3567848](https://doi.org/10.1145/3566097.3567848)
 """
-function schedule_xghtc(constraints::Vector{<:MeetAny}; slotsize::Int64=1, H::Int64=100, work_conserving::Bool=false)
+function schedule_xghtc(constraints::Vector{<:MeetAny}, H::Integer;
+        slotsize::Integer=1, work_conserving::Bool=false)
     # Check if "utilization" is greater than available slot size
     utilization = sum(c -> c.meet/c.window, constraints)
     if utilization > slotsize
@@ -72,6 +73,57 @@ function schedule_xghtc(constraints::Vector{<:MeetAny}; slotsize::Int64=1, H::In
 end
 
 """
+    schedule_xghtc(allconstraints, H; slotsize=1, work_conserving=false)
+
+Given a list of safe constraints for each system, synthesize a schedule using one safe 
+constraint from each list. The first successful synthesis result is returned.
+"""
+function schedule_xghtc(allconstraints::Vector{<:Vector{<:MeetAny}}, H::Integer;
+        slotsize::Integer=1, work_conserving::Bool=false)
+    for constraints in Iterators.product(allconstraints...)
+        sch = schedule_xghtc(collect(constraints), H, 
+            slotsize=slotsize, work_conserving=work_conserving)
+        if length(sch) > 0
+            println(constraints)
+            return sch
+        end
+    end
+    return zeros(Int64, 0, 0)
+end
+
+"""
+    verify_schedule(sysd, K, z_0, σ)
+
+Given a discrete state-space model, feedback gain, the initial state, and a sequence of
+deadline hits and misses, returns the maximum deviaiton between the resulting trajectory
+and the nominal trajectory for that system where all deadlines are met.
+"""
+function verify_schedule(sysd::AbstractStateSpace{<:Discrete}, 
+        K::AbstractMatrix{<:Real}, z_0::AbstractVecOrMat, σ::AbstractVector{<:Integer})
+    a = hold_kill(sysd, K)
+
+    # Convert the actions σ to: 1=hit, 2=miss (instead of 0=miss)
+    σ = [i == 0 ? 2 : 1 for i in σ]
+    z = evol(a, z_0, σ)
+
+    # Convert trajectory to reachable sets by repeating the state twice for min/max
+    reachable = cat(z, z, dims=3)
+    maximum(deviation(a, z_0, reachable))
+end
+
+"""
+    schedule_to_sequence(schedule, task, H)
+
+Given a schedule in the matrix form, the position of the task in the schedule and the desired
+length of the sequence, returns a sequence of 0s and 1s of length H representing the deadline
+hits and misses for that task under the given schedule.
+"""
+function schedule_to_sequence(schedule::Matrix{<:Integer}, task::Integer, H::Integer)
+    σ = schedule[task, :]
+    [repeat(σ, H ÷ length(σ)); σ[1:H % length(σ)]]
+end
+
+"""
     synthesize_constraints(sysd, K, z_0, d_max, maxwindow, n, t)
 
 Find all `MeetAny` weakly hard constraints with window size at most `maxwindow` that 
@@ -80,33 +132,117 @@ guarantees the deviation upper bound is at most `d_max`. The system is specified
 [`bounded_runs_iter`](@ref).
 """
 function synthesize_constraints(sysd::AbstractStateSpace{<:Discrete},
-    K::AbstractMatrix{Float64}, z_0::AbstractVecOrMat, d_max::Float64,
-    maxwindow::Int64, n::Int64, t::Int64)
+        K::AbstractMatrix{<:Real}, z_0::AbstractVecOrMat, d_max::Real,
+        maxwindow::Integer, n::Integer, H::Integer; fullresults=false)
 
-    safe_constraints = MeetAny[]
+    devs = fill(Inf, maxwindow, maxwindow)
+    safe_constraints = [MeetAny(1, 1)]
 
-    # Do not need to go through all O(maxwindow^2) constraints,
-    # see paper for optimization argument
-    meet = 1
-    for window in 2:maxwindow
-        while meet < window
-            constraint = MeetAny(meet, window)
-            a = hold_kill(sysd, K, constraint)
-            # Check if the deviation bound is within the safety margin
-            reachable = bounded_runs_iter(a, z_0, n, t)
-            m = maximum(deviation(a, z_0, reachable))
-            if m <= d_max
-                # All constraints with (m, window) where m >= meet are valid
-                for i in meet:window-1
-                    push!(safe_constraints, MeetAny(i, window))
-                end
-                break
+    if fullresults
+        for window = 1:maxwindow, meet=1:window
+            devs[window, meet] = devub(meet, window, sysd, K, z_0, d_max, n, H)
+            if devs[window, meet] <= d_max && meet < window
+                push!(safe_constraints, MeetAny(meet, window))
             end
-            meet += 1
+        end
+    else
+        # Do not need to go through all O(maxwindow^2) constraints,
+        # see paper for optimization argument
+        meet = 1
+        for window in 1:maxwindow
+            while meet <= window
+                devs[window, meet] = devub(meet, window, sysd, K, z_0, d_max, n, H)
+                if devs[window, meet] <= d_max
+                    # All constraints with (m, window) where m >= meet are valid
+                    for i in meet:window-1
+                        push!(safe_constraints, MeetAny(i, window))
+                    end
+                    break
+                end
+                meet += 1
+            end
         end
     end
 
     safe_constraints
+end
+
+"""
+    devub(meet, window, sysd, K, z_0, d_max, n, H)
+
+Compute the deviation upper bound for a given system under the weakly hard constraint 
+(meet, window), over a specified time horizon. Uses [`bounded_runs_iter`](@ref).
+"""
+function devub(meet::Integer, window::Integer, sysd::AbstractStateSpace{<:Discrete},
+        K::AbstractMatrix{<:Real}, z_0::AbstractVecOrMat, d_max::Real, n::Integer,
+        H::Integer)
+    if meet == window
+        return 0.
+    end
+    constraint = MeetAny(meet, window)
+    a = hold_kill(sysd, K, constraint)
+    reachable = bounded_runs_iter(a, z_0, n, ceil(Int64, H/n), safety_margin=d_max)
+    reachable = reachable[1:min(H, size(reachable, 1)), :, :]
+    # @info "Data" meet window size(reachable, 1) argmax(deviation(a, z_0, reachable))
+    maximum(deviation(a, z_0, reachable))
+end
+
+"""
+    estimate_constraints(sysd, K, z_0, d_max, maxwindow, c, B, H)
+
+Find all `MeetAny` weakly hard constraints with window size at most `maxwindow` that 
+guarantees the deviation upper bound is at most `d_max`. The system is specified by 
+[`Automaton`](@ref) `a` and initial state is `z_0`. This function uses SHT for 
+estimating the deviation upper bound as in [`estimate_deviation`](@ref).
+"""
+function estimate_constraints(sysd::AbstractStateSpace{<:Discrete},
+        K::AbstractMatrix{<:Real}, z_0::AbstractVecOrMat, d_max::Real, 
+        maxwindow::Integer, c::Real, B::Real, H::Integer; fullresults=false)
+
+    devs = fill(Inf, maxwindow, maxwindow)
+    safe_constraints = [MeetAny(1, 1)]
+    
+    if fullresults
+        for window = 1:maxwindow, meet=1:window
+            devs[window, meet] = devest(meet, window, sysd, K, z_0, c, B, H)
+            if devs[window, meet] <= d_max && meet < window
+                push!(safe_constraints, MeetAny(meet, window))
+            end
+        end
+    else
+        meet = 1
+        for window in 1:maxwindow
+            while meet <= window
+                devs[window, meet] = devest(meet, window, sysd, K, z_0, c, B, H)
+                if devs[window, meet] <= d_max
+                    for i in meet:window-1
+                        push!(safe_constraints, MeetAny(i, window))
+                    end
+                    break
+                end
+                meet += 1
+            end
+        end
+    end
+    
+    safe_constraints
+end
+
+"""
+    devest(meet, window, sysd, K, z_0, c, B, H)
+
+Estimate the deviation upper bound for a given system under the weakly hard constraint 
+(meet, window), over a specified time horizon. Uses [`estimate_deviation`](@ref).
+"""
+function devest(meet::Integer, window::Integer, sysd::AbstractStateSpace{<:Discrete},
+        K::AbstractMatrix{<:Real}, z_0::AbstractVecOrMat, c::Real, B::Real, H::Integer)
+    if meet == window
+        return 0.
+    end
+    constraint = MeetAny(meet, window)
+    a = hold_kill(sysd, K, constraint)
+    sampler = SamplerUniformMeetAny(constraint, H)
+    estimate_deviation(a, sampler, z_0, c, B)
 end
 
 # Helper functions
@@ -120,7 +256,7 @@ julia> ControlTimingSafety._undigit([1, 0, 0])
 4
 ```
 """
-function _undigit(d::Vector{Int64}; base=2)
+function _undigit(d::Vector{<:Integer}; base=2)
     s = 0
     mult = 1
     for val in reverse(d)
@@ -136,7 +272,7 @@ end
 Digits **b**ase **2**, **r**everse
 A shortcut for `digits(x, base=2, pad=pad) |> reverse`
 """
-_digits_b2r(x::Int64; pad::Int64=0) = digits(x, base=2, pad=pad) |> reverse
+_digits_b2r(x::Integer; pad::Integer=0) = digits(x, base=2, pad=pad) |> reverse
 
 """
     _state_separation(l, B[, indigits=false])
@@ -159,7 +295,7 @@ The explanation of the example is as follows
 [[1], [1, 0]] -> [1, 2]
 ```
 """
-function _state_separation(l::Int64, B::Vector{Int64}; indigits=false)
+function _state_separation(l::Integer, B::Vector{<:Integer}; indigits=false)
     @boundscheck l < 2^sum(B) || throw(ArgumentError("l has more bits than the sum of B"))
     
     bits = digits(l, base=2, pad=sum(B)) |> reverse
@@ -241,7 +377,7 @@ end
 """
 Build a scheduler automaton from a given list of controller automata
 """
-function _SynthesizedAutomaton(controllers::Vector{_ConstraintAutomaton}; slotsize::Int64=1, work_conserving::Bool=false)
+function _SynthesizedAutomaton(controllers::Vector{_ConstraintAutomaton}; slotsize::Integer=1, work_conserving::Bool=false)
     # Converting tuple to array with collect()
     N = length(controllers)
     B = map(a -> ceil(Int64, log2(a.L)), controllers) |> collect
@@ -277,7 +413,7 @@ function _SynthesizedAutomaton(controllers::Vector{_ConstraintAutomaton}; slotsi
     _SynthesizedAutomaton(N, B, L, Σ, T, L-1, Q_f)
 end
 
-function _path_to_schedule(path::Union{LinkedList{Int64}, Vector{Int64}}, AS::_SynthesizedAutomaton)
+function _path_to_schedule(path::Union{LinkedList{<:Integer}, Vector{<:Integer}}, AS::_SynthesizedAutomaton)
     # Convert path to Vector
     path = collect(path)
 
