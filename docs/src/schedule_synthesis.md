@@ -1,6 +1,6 @@
 # Schedule Synthesis
 
-The main functionality of this section is divided into two functions
+The main functionality of this section is divided into three functions
 1. [`synthesize_constraints`](@ref): given the dynamics and safety margin of **one**
    control task, find all weakly-hard constraints (up to a maximum window size `maxwindow`)
    with which the system behaves safely,
@@ -14,4 +14,17 @@ The main functionality of this section is divided into two functions
 ```@docs
 synthesize_constraints
 schedule_xghtc
+estimate_constraints
+```
+
+## Utility Functions
+
+A few utility functions are exported as well.  These support the implementation
+of the above functions, and are potentially useful to their callers as well.
+
+```@docs
+schedule_to_sequence
+verify_schedule
+devub
+devest
 ```

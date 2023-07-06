@@ -171,7 +171,7 @@ end
     devub(meet, window, sysd, K, z_0, d_max, n, H)
 
 Compute the deviation upper bound for a given system under the weakly hard constraint 
-(meet, window), over a specified time horizon.
+(meet, window), over a specified time horizon. Uses [`bounded_runs_iter`](@ref).
 """
 function devub(meet::Integer, window::Integer, sysd::AbstractStateSpace{<:Discrete},
         K::AbstractMatrix{<:Real}, z_0::AbstractVecOrMat, d_max::Real, n::Integer,
@@ -228,6 +228,12 @@ function estimate_constraints(sysd::AbstractStateSpace{<:Discrete},
     safe_constraints
 end
 
+"""
+    devest(meet, window, sysd, K, z_0, c, B, H)
+
+Estimate the deviation upper bound for a given system under the weakly hard constraint 
+(meet, window), over a specified time horizon. Uses [`estimate_deviation`](@ref).
+"""
 function devest(meet::Integer, window::Integer, sysd::AbstractStateSpace{<:Discrete},
         K::AbstractMatrix{<:Real}, z_0::AbstractVecOrMat, c::Real, B::Real, H::Integer)
     if meet == window
