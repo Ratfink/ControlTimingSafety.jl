@@ -133,7 +133,8 @@ guarantees the deviation upper bound is at most `d_max`. The system is specified
 """
 function synthesize_constraints(sysd::AbstractStateSpace{<:Discrete},
         K::AbstractMatrix{<:Real}, z_0::AbstractVecOrMat, d_max::Real,
-        maxwindow::Integer, n::Integer, H::Integer; fullresults=false)
+        maxwindow::Integer, n::Integer, H::Integer; fullresults=false,
+        nominal::Union{Matrix{<:Real}, Nothing}=nothing)
 
     devs = fill(Inf, maxwindow, maxwindow)
     safe_constraints = [MeetAny(1, 1)]
@@ -151,7 +152,7 @@ function synthesize_constraints(sysd::AbstractStateSpace{<:Discrete},
         meet = 1
         for window in 1:maxwindow
             while meet <= window
-                devs[window, meet] = devub(meet, window, sysd, K, z_0, d_max, n, H)
+                devs[window, meet] = devub(meet, window, sysd, K, z_0, d_max, n, H, nominal)
                 if devs[window, meet] <= d_max
                     # All constraints with (m, window) where m >= meet are valid
                     for i in meet:window-1
@@ -175,16 +176,19 @@ Compute the deviation upper bound for a given system under the weakly hard const
 """
 function devub(meet::Integer, window::Integer, sysd::AbstractStateSpace{<:Discrete},
         K::AbstractMatrix{<:Real}, z_0::AbstractVecOrMat, d_max::Real, n::Integer,
-        H::Integer)
-    if meet == window
+        H::Integer, nominal::Union{Matrix{<:Real}, Nothing}=nothing)
+    @boundscheck nominal === nothing || size(nominal, 1) == H+1 || throw(ArgumentError("nominal and H mismatch"))
+    if meet == window && nominal === nothing
         return 0.
     end
     constraint = MeetAny(meet, window)
     a = hold_kill(sysd, K, constraint)
     reachable = bounded_runs_iter(a, z_0, n, H, safety_margin=d_max)
-    reachable = reachable[1:min(H, size(reachable, 1)), :, :]
+    if size(reachable, 1) != H+1
+        return d_max
+    end
     # @info "Data" meet window size(reachable, 1) argmax(deviation(a, z_0, reachable))
-    maximum(deviation(a, z_0, reachable))
+    maximum(deviation(a, z_0, reachable, nominal_trajectory=nominal))
 end
 
 """
