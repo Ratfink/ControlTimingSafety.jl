@@ -144,7 +144,7 @@ of the `H` time stpes. The number of iterations is the smallest integer `t` such
 See also [`deviation`](@ref), which can be called with the result of this function to find
 the deviation from a nominal trajectory.
 """
-function bounded_runs_iter(a::Automaton, z_0::AbstractVecOrMat, n::Integer, H::Integer; safety_margin::Float64=Inf)
+function bounded_runs_iter(a::Automaton, z_0::AbstractVecOrMat, n::Integer, H::Integer; safety_margin::Real=Inf)
     t = ceil(Int64, H / n)
     # Dimensions: time, augmented state, min/max
     all_bounds = Array{Float64}(undef, n*t+1, a.nz, 2)
