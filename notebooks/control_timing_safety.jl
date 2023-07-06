@@ -370,11 +370,10 @@ This section illustrates the Bounded Runs Iteration algorithm, used to efficient
 
 # ╔═╡ efc6aa00-cfdb-45fb-809b-f99c663690f6
 begin
-	t_4 = div(time_4, n_4)
 	all_bounds = let
 		automaton = strat_map[sim_strategy_4](sysd, K, MissRow(max_miss_4))
 		augbounds = augment(automaton, bounds)
-		bounded_runs_iter(automaton, augbounds, n_4, t_4)
+		bounded_runs_iter(automaton, augbounds, n_4, time_4)
 	end
 	
 	md"""
