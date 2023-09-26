@@ -185,6 +185,7 @@ function devub(meet::Integer, window::Integer, sysd::AbstractStateSpace{<:Discre
     a = hold_kill(sysd, K, constraint)
     reachable = bounded_runs_iter(a, z_0, n, H, safety_margin=d_max)
     if size(reachable, 1) != H+1
+        @info "Size mismatch"
         return d_max
     end
     # @info "Data" meet window size(reachable, 1) argmax(deviation(a, z_0, reachable))

@@ -24,9 +24,12 @@ sysd = c2d(sys, p)
 
 z0 = [100., 100., 0.]
 
-d_max = 1000
+d_max = 1000.
 maxwindow = 6
 n = 10
 H = 100
 
-display(synthesize_constraints(sysd, K, z0, d_max, maxwindow, n, H, fullresults=true)[2])
+# display(synthesize_constraints(sysd, K, z0, d_max, maxwindow, n, H, fullresults=true)[2])
+for i in 1:10
+	println(devub(1, 2, sysd, K, z0, d_max, n, H))
+end
